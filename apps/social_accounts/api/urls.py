@@ -1,0 +1,1 @@
+path("meta/callback/", MetaCallbackView.as_view(), name="meta-callback"),

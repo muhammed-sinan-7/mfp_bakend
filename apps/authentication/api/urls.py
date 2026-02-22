@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (RequestEmailVerificationOTPView,
                     RegisterUserView,
                     VerifyEmailOTPView,
-                    LoginView)
+                    LoginView,
+                    TestDashboardView,CustomTokenRefreshView)
 from rest_framework_simplejwt.views import TokenRefreshView
 
 
@@ -11,5 +12,6 @@ urlpatterns = [
     path('verify-email-otp/',VerifyEmailOTPView.as_view()),
     path('register/',RegisterUserView.as_view()),
     path('login/',LoginView.as_view()),
-    path('token/refresh/',TokenRefreshView.as_view(),name="token_refresh"),
+    path('token/refresh/',CustomTokenRefreshView.as_view(),name="token_refresh"),
+    path("test-dashboard/", TestDashboardView.as_view()),
 ]

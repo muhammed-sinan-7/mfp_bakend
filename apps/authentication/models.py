@@ -43,7 +43,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_email_verified = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
     google_oauth_id = models.CharField(max_length=255, null=True, blank=True)
-
+    failed_login_attempts = models.IntegerField(default=0)
+    account_locked_until = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
 
