@@ -1,8 +1,8 @@
 from django.db import models
 from django.utils import timezone
-from fernet_fields import EncryptedTextField
+from encrypted_model_fields.fields import EncryptedTextField
 from apps.organizations.models import Organization
-from ...common.models import BaseModel
+from common.models import BaseModel
 # Create your models here.
 
 
@@ -23,14 +23,15 @@ class SocialAccount(BaseModel):
     )
     
     external_id = models.CharField(max_length=255)
-    account_name = models.CharField(max_lenght=255)
+    account_name = models.CharField(max_length=255)
     
     access_token = EncryptedTextField()
-    refresh_token = EncryptedTextField(blank=True, null=True)
+    refresh_token = EncryptedTextField(null=True, blank=True)
     
     token_expires_at = models.DateTimeField(blank=True,null=True)
     scopes = models.JSONField(default=list, blank=True)
-    
+    refresh_failed_count = models.IntegerField(default=0)
+    last_refreshed_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     
     is_active = models.BooleanField(default=True)
