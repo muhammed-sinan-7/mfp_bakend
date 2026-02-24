@@ -20,3 +20,9 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute=0, hour="*/12"),
     },
 }
+app.conf.beat_schedule = {
+    "refresh-youtube-tokens-every-15-minutes": {
+        "task": "apps.social_accounts.tasks.dispatch_expiring_youtube_refresh_tasks",
+        "schedule": crontab(minute="*/15"),
+    },
+}

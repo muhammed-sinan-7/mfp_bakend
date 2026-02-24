@@ -1,9 +1,24 @@
 from rest_framework import serializers
-from ..models import SocialAccount
+from ..models import SocialAccount,PublishingTarget
 from django.utils import timezone
+
+class PublishingTargetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PublishingTarget
+        fields = [
+            "id",
+            "provider",
+            "resource_id",
+            "display_name",
+        ]
+
 
 class SocialAccountSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
+    publishing_targets = PublishingTargetSerializer(
+        many=True,
+        read_only=True
+    )
 
     class Meta:
         model = SocialAccount
@@ -12,6 +27,7 @@ class SocialAccountSerializer(serializers.ModelSerializer):
             "provider",
             "account_name",
             "token_expires_at",
+            "publishing_targets",
             "status",
         ]
 

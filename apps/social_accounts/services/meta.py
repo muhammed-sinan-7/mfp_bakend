@@ -1,11 +1,20 @@
-from urllib.parse import urlencode
-from django.conf import settings
 import requests
+from django.conf import settings
+from urllib.parse import urlencode
+
 
 class MetaOAuthService:
-    
+
     GRAPH_BASE = "https://graph.facebook.com/v18.0"
     AUTH_BASE_URL = "https://www.facebook.com/v18.0/dialog/oauth"
+
+    SCOPES = [
+        "pages_show_list",
+        "pages_read_engagement",
+        "pages_manage_posts",
+        "instagram_basic",
+        "instagram_content_publish",
+    ]
 
     def exchange_code(self, code: str):
         response = requests.get(
@@ -40,16 +49,16 @@ class MetaOAuthService:
         )
         response.raise_for_status()
         return response.json()
-    
+
     def fetch_user_profile(self, access_token: str):
         response = requests.get(
             f"{self.GRAPH_BASE}/me",
-            params={"access_token": access_token}
+            params={"access_token": access_token},
         )
         response.raise_for_status()
         return response.json()
-    
-    def fetch_instagram_business(self, page_id: str, page_token: str):
+
+    def fetch_instagram_account(self, page_id: str, page_token: str):
         response = requests.get(
             f"{self.GRAPH_BASE}/{page_id}",
             params={
@@ -58,16 +67,19 @@ class MetaOAuthService:
             },
         )
         response.raise_for_status()
+        data = response.json()
+        return data.get("instagram_business_account")
+
+    def fetch_instagram_profile(self, ig_id: str, page_token: str):
+        response = requests.get(
+            f"{self.GRAPH_BASE}/{ig_id}",
+            params={
+                "fields": "id,username",
+                "access_token": page_token,
+            },
+        )
+        response.raise_for_status()
         return response.json()
-
-
-    SCOPES = [
-        "pages_show_list",
-        "pages_read_engagement",
-        "pages_manage_posts",
-        "instagram_basic",
-        "instagram_content_publish",
-    ]
 
     def get_authorization_url(self, state: str) -> str:
         params = {
@@ -77,5 +89,4 @@ class MetaOAuthService:
             "response_type": "code",
             "state": state,
         }
-
         return f"{self.AUTH_BASE_URL}?{urlencode(params)}"

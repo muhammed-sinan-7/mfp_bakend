@@ -7,7 +7,8 @@ from common.models import BaseModel
 
 
 class SocialProvider(models.TextChoices):
-    META = "META","Meta"
+    META = "META","Meta",
+    INSTAGRAM = "INSTAGRAM",
     LINKEDIN = "LINKEDIN","LinkedIn"
     YOUTUBE = "YOUTUBE",'YouTube'
     
@@ -70,7 +71,7 @@ class PublishingTarget(BaseModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ("social_account", "resource_id")
+        unique_together = ("social_account", "provider", "resource_id")
         indexes = [
             models.Index(fields=["provider"]),
             models.Index(fields=["resource_id"]),

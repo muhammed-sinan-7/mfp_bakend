@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "drf_yasg",
+    'django_filters',
     "rest_framework_simplejwt.token_blacklist",
     "apps.authentication",
     "apps.organizations",
@@ -79,6 +80,11 @@ REST_FRAMEWORK.update({
         "anon": "10/min",
         "user": "100/min",
     },
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
 })
 
 SIMPLE_JWT = {
@@ -122,6 +128,10 @@ FRONTEND_SUCCESS_URL = os.getenv("FRONTEND_SUCCESS_URL")
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET")
 LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI")
+
+GOOGLE_CLIENT_ID=os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET=os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI=os.getenv("GOOGLE_REDIRECT_URI")
 
 
 MIDDLEWARE = [

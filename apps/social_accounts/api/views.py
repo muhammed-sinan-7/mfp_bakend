@@ -17,10 +17,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from apps.organizations.mixins import OrganizationContextMixin
 from apps.social_accounts.services.linkedin import LinkedInOAuthService
-from apps.social_accounts.models import SocialAccount,SocialProvider
+from apps.social_accounts.models import SocialAccount,SocialProvider,PublishingTarget
 from apps.social_accounts.services.meta_sync_service import MetaSyncService
 from ..tasks import sync_meta_pages_task
 from apps.social_accounts.services.linkedin import LinkedInService
+from apps.social_accounts.services.youtube import YouTubeOAuthService
+from datetime import timedelta
+from django.utils import timezone
 
 class MetaConnectView(OrganizationContextMixin,APIView):
     permission_classes = [AllowAny]
@@ -258,3 +261,72 @@ class SocialAccountListView(OrganizationContextMixin,APIView):
         serializer = SocialAccountSerializer(accounts, many=True)
 
         return Response(serializer.data)
+    
+class YouTubeConnectView(OrganizationContextMixin, APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        if not request.organization:
+            return Response({"error": "Organization not found"}, status=400)
+
+        auth_url = YouTubeOAuthService.generate_authorization_url(
+            request.organization.id
+        )
+
+        return Response({"authorization_url": auth_url})
+    
+class YouTubeCallbackView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+
+        code = request.GET.get("code")
+        state = request.GET.get("state")
+
+        if not code or not state:
+            return Response({"error": "Missing code or state"}, status=400)
+
+        org_id = YouTubeOAuthService.validate_state(state)
+
+        token_data = YouTubeOAuthService.exchange_code(code)
+
+        access_token = token_data.get("access_token")
+        refresh_token = token_data.get("refresh_token")
+        expires_in = token_data.get("expires_in", 3600)
+
+        channel_data = YouTubeOAuthService.fetch_channel(access_token)
+
+        if not channel_data.get("items"):
+            return Response({"error": "No YouTube channel found"}, status=400)
+
+        channel = channel_data["items"][0]
+
+        external_id = channel["id"]
+        channel_name = channel["snippet"]["title"]
+
+        social_account, _ = SocialAccount.objects.update_or_create(
+            organization_id=org_id,
+            provider=SocialProvider.YOUTUBE,
+            external_id=external_id,
+            defaults={
+                "account_name": channel_name,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_expires_at": timezone.now() + timedelta(seconds=expires_in),
+                "is_active": True,
+            },
+        )
+
+        PublishingTarget.objects.update_or_create(
+            social_account=social_account,
+            provider=SocialProvider.YOUTUBE,
+            resource_id=external_id,
+            defaults={
+                "display_name": channel_name,
+                "metadata": channel,
+                "is_active": True,
+            },
+        )
+
+        return redirect(f"{settings.FRONTEND_SUCCESS_URL}/accounts")
