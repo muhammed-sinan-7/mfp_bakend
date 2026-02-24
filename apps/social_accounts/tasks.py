@@ -4,7 +4,7 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 from apps.social_accounts.models import SocialAccount
-
+from apps.social_accounts.services.meta_sync_service import MetaSyncService
 
 @shared_task
 def dispatch_expiring_meta_refresh_tasks():
@@ -44,3 +44,8 @@ def refresh_meta_account_task(self, account_id: int):
             exc=exc,
             countdown=60 * (2 ** self.request.retries)
         )
+        
+@shared_task
+def sync_meta_pages_task(social_account_id):
+    social_account = SocialAccount.objects.get(id=social_account_id)
+    MetaSyncService.sync_pages(social_account)

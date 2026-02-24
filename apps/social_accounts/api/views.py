@@ -12,15 +12,23 @@ from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from ..services.meta import MetaOAuthService
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from apps.organizations.mixins import OrganizationContextMixin
+from apps.social_accounts.services.linkedin import LinkedInOAuthService
+from apps.social_accounts.models import SocialAccount,SocialProvider
+from apps.social_accounts.services.meta_sync_service import MetaSyncService
+from ..tasks import sync_meta_pages_task
+from apps.social_accounts.services.linkedin import LinkedInService
 
-
-class MetaConnectView(APIView):
+class MetaConnectView(OrganizationContextMixin,APIView):
     permission_classes = [AllowAny]
 
     def generate_state(self, user_id, org_id):
         payload = {
-            "user_id": user_id,
-            "org_id": org_id,
+            "user_id": str(user_id),
+            "org_id": str(org_id),
             "timestamp": int(time.time())
         }
 
@@ -36,10 +44,15 @@ class MetaConnectView(APIView):
         return f"{payload_b64}.{signature}"
 
     def get(self, request):
-        org_id = request.query_params.get("org_id")
+        organization = request.organization
 
-        if not org_id:
-            return Response({"error": "org_id required"}, status=400)
+        if not organization:
+            return Response(
+                {"error": "Organization not found"},
+                status=400
+            )
+
+        org_id = organization.id
 
         state = self.generate_state(request.user.id, org_id)
 
@@ -61,7 +74,7 @@ class MetaConnectView(APIView):
             + urlencode(params)
         )
 
-        return redirect(auth_url)
+        return Response({"authorization_url": auth_url})
 
 
 
@@ -108,68 +121,140 @@ class MetaCallbackView(APIView):
 
         service = MetaOAuthService()
 
-     
+      
         token_data = service.exchange_code(code)
-
         if "access_token" not in token_data:
             return Response(token_data, status=400)
 
         short_token = token_data["access_token"]
 
-      
+        
         long_token_data = service.get_long_lived_token(short_token)
-
         if "access_token" not in long_token_data:
             return Response(long_token_data, status=400)
 
         long_token = long_token_data["access_token"]
 
-       
-        pages_data = service.fetch_pages(long_token)
-     
-
-        if "data" not in pages_data:
-            return Response(pages_data, status=400)
-
-        pages = pages_data["data"]
-
-        
-
+    
         from django.utils import timezone
         from datetime import timedelta
-        from apps.social_accounts.models import SocialAccount, SocialProvider
 
         expires_in = long_token_data.get("expires_in", 60 * 24 * 60 * 60)
         expires_at = timezone.now() + timedelta(seconds=expires_in)
 
-        for page in pages:
+        
+        profile = service.fetch_user_profile(long_token)
 
-            page_id = page["id"]
-            page_name = page["name"]
-            page_token = page["access_token"]
+        meta_user_id = profile["id"]
+        meta_user_name = profile.get("name", "Meta Account")
 
-            ig_data = service.fetch_instagram_business(page_id, page_token)
+        
+        social_account, _ = SocialAccount.objects.update_or_create(
+            organization_id=payload["org_id"],
+            provider=SocialProvider.META,
+            external_id=meta_user_id,
+            defaults={
+                "account_name": meta_user_name,
+                "access_token": long_token,
+                "token_expires_at": expires_at,
+                "scopes": service.SCOPES,
+                "is_active": True,
+            }
+        )
 
-            instagram_business = None
-            if "instagram_business_account" in ig_data:
-                instagram_business = ig_data["instagram_business_account"]
+        
+        sync_meta_pages_task.delay(social_account.id)
 
-            SocialAccount.objects.update_or_create(
-                organization_id=payload["org_id"],
-                provider=SocialProvider.META,
-                external_id=page_id,
-                defaults={
-                    "account_name": page_name,
-                    "access_token": page_token,  # auto encrypted
-                    "token_expires_at": expires_at,
-                    "scopes": service.SCOPES,
-                    "metadata": {
-                        "instagram_business_id": instagram_business["id"]
-                        if instagram_business else None
-                    },
-                    "is_active": True,
-                }
+    
+        return redirect(f"{settings.FRONTEND_SUCCESS_URL}/accounts")
+    
+    
+class MetaPageSyncView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        social_account = SocialAccount.objects.get(
+            organization=request.user.organization,
+            provider=SocialProvider.META,
+            is_active=True,
+        )
+
+        sync_meta_pages_task.delay(social_account.id)
+        return Response({"message": "Sync started"})
+
+
+class LinkedInConnectView(OrganizationContextMixin,APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        
+        organization = request.organization
+
+        if not organization:
+            return Response(
+                {"error": "Organization not found"},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
+        auth_url = LinkedInOAuthService.generate_authorization_url(
+            organization_id=organization.id
+        )
 
-        return redirect(settings.FRONTEND_SUCCESS_URL)
+        return Response({"authorization_url": auth_url})
+    
+    
+class LinkedInCallbackView(OrganizationContextMixin,APIView):
+
+    def get(self, request):
+        
+        code = request.GET.get("code")
+        state = request.GET.get("state")
+
+        if not code or not state:
+            return Response(
+                {"error": "Missing code or state"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            
+            org_id = LinkedInOAuthService.validate_state(state)
+
+            
+            token_data = LinkedInOAuthService.exchange_code(code)
+
+           
+            profile_data = LinkedInOAuthService.fetch_profile(
+                token_data.get("access_token")
+            )
+
+            
+            LinkedInOAuthService.save_account(
+                org_id=org_id,
+                token_data=token_data,
+                profile_data=profile_data
+            )
+           
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return redirect(f"{settings.FRONTEND_SUCCESS_URL}/accounts")
+    
+
+from .serializers import SocialAccountSerializer
+class SocialAccountListView(OrganizationContextMixin,APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        organization = request.organization
+
+        accounts = SocialAccount.objects.filter(
+            organization=organization
+        )
+
+        serializer = SocialAccountSerializer(accounts, many=True)
+
+        return Response(serializer.data)

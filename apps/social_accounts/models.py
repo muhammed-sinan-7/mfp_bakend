@@ -48,3 +48,96 @@ class SocialAccount(BaseModel):
             return False
         return timezone.now() >= self.token_expires_at
     
+    
+    
+class PublishingTarget(BaseModel):
+    social_account = models.ForeignKey(
+        SocialAccount,
+        on_delete=models.CASCADE,
+        related_name="publishing_targets"
+    )
+
+    provider = models.CharField(
+        max_length=20,
+        choices=SocialProvider.choices
+    )
+
+    resource_id = models.CharField(max_length=255)
+    display_name = models.CharField(max_length=255)
+
+    metadata = models.JSONField(default=dict, blank=True)
+
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ("social_account", "resource_id")
+        indexes = [
+            models.Index(fields=["provider"]),
+            models.Index(fields=["resource_id"]),
+        ]
+        
+        
+class MetaPage(BaseModel):
+    social_account = models.ForeignKey(
+        SocialAccount,
+        on_delete=models.CASCADE,
+        related_name="meta_pages",
+        limit_choices_to={"provider": SocialProvider.META}
+    )
+
+    page_id = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+
+    page_access_token = EncryptedTextField()
+
+    instagram_business_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        unique_together = ("social_account", "page_id")
+        indexes = [
+            models.Index(fields=["page_id"]),
+            models.Index(fields=["social_account"]),
+        ]
+        
+        
+class LinkedInOrganization(BaseModel):
+    social_account = models.ForeignKey(
+        SocialAccount,
+        on_delete=models.CASCADE,
+        related_name="linkedin_organizations",
+        limit_choices_to={"provider": SocialProvider.LINKEDIN}
+    )
+
+    linkedin_id = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+
+    vanity_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+
+    logo_url = models.URLField(
+        null=True,
+        blank=True
+    )
+
+    metadata = models.JSONField(default=dict, blank=True)
+
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ("social_account", "linkedin_id")
+        indexes = [
+            models.Index(fields=["linkedin_id"]),
+            models.Index(fields=["social_account"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.linkedin_id})"

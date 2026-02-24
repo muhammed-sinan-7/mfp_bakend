@@ -5,7 +5,7 @@ class OrganizationContextMixin:
 
     def initial(self, request, *args, **kwargs):
 
-        # Attach organization FIRST
+        
         request.organization = None
         request.membership = None
 

@@ -17,6 +17,7 @@ class MetaOAuthService:
                 "code": code,
             },
         )
+        response.raise_for_status()
         return response.json()
 
     def get_long_lived_token(self, short_token: str):
@@ -29,6 +30,7 @@ class MetaOAuthService:
                 "fb_exchange_token": short_token,
             },
         )
+        response.raise_for_status()
         return response.json()
 
     def fetch_pages(self, user_token: str):
@@ -36,6 +38,15 @@ class MetaOAuthService:
             f"{self.GRAPH_BASE}/me/accounts",
             params={"access_token": user_token},
         )
+        response.raise_for_status()
+        return response.json()
+    
+    def fetch_user_profile(self, access_token: str):
+        response = requests.get(
+            f"{self.GRAPH_BASE}/me",
+            params={"access_token": access_token}
+        )
+        response.raise_for_status()
         return response.json()
     
     def fetch_instagram_business(self, page_id: str, page_token: str):
@@ -46,6 +57,7 @@ class MetaOAuthService:
                 "access_token": page_token,
             },
         )
+        response.raise_for_status()
         return response.json()
 
 
