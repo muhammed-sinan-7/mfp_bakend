@@ -19,7 +19,8 @@ from django.urls import path,include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-
+from django.conf import settings
+from django.conf.urls.static import static
 schema_view = get_schema_view(
     openapi.Info(
         title="MFP API",
@@ -39,6 +40,7 @@ urlpatterns = [
     path('api/v1/industries/',include('apps.industries.api.urls')),
     path('api/v1/audit/',include('apps.audit.api.urls')),
     path("api/v1/social/", include("apps.social_accounts.api.urls")),
+    path("api/v1/posts/", include("apps.posts.api.urls")),
     
     
     
@@ -48,3 +50,8 @@ urlpatterns = [
     path("swagger/", schema_view.with_ui("swagger", cache_timeout=0), name="swagger-ui"),
     path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="redoc-ui"),
 ]
+if settings.DEBUG:
+    urlpatterns += static(
+        settings.MEDIA_URL,
+        document_root=settings.MEDIA_ROOT
+    )

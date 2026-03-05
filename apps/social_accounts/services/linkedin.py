@@ -17,14 +17,14 @@ class LinkedInOAuthService:
     TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
     PROFILE_URL = "https://api.linkedin.com/v2/userinfo"
 
-    STATE_TTL = 600  # 10 minutes
+    STATE_TTL = 600 
 
     @staticmethod
     def generate_authorization_url(organization_id):
         
         state = secrets.token_urlsafe(32)
 
-        # Store state in Redis
+     
         cache.set(
             f"linkedin_oauth_state:{state}",
             str(organization_id),
@@ -81,7 +81,7 @@ class LinkedInOAuthService:
         if not org_id:
             raise Exception("Invalid or expired OAuth state")
 
-        # Delete after use (important)
+        
         cache.delete(f"linkedin_oauth_state:{state}")
 
         return org_id
@@ -98,7 +98,7 @@ class LinkedInOAuthService:
 
         social_account, _ = SocialAccount.objects.update_or_create(
             organization_id=org_id,
-            provider="LINKEDIN",
+            provider="linkedin",
             external_id=external_id,
             defaults={
                 "account_name": account_name,

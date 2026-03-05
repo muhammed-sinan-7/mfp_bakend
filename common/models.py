@@ -33,17 +33,15 @@ class SoftDeleteModel(models.Model):
         related_name="deleted_%(class)s_set"
     )
 
-    # Managers
-    objects = ActiveManager()        # default: only active
-    all_objects = models.Manager()   # includes deleted
+    
+    objects = ActiveManager()       
+    all_objects = models.Manager()   
 
     class Meta:
         abstract = True
 
     def delete(self, user=None, *args, **kwargs):
-        """
-        Soft delete: mark record as deleted instead of removing it.
-        """
+        
         if self.is_deleted:
             return  
 
@@ -56,16 +54,11 @@ class SoftDeleteModel(models.Model):
         self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
 
     def hard_delete(self):
-        """
-        Permanently remove from database.
-        Use only for system cleanup tasks.
-        """
+       
         super().delete()
 
     def restore(self):
-        """
-        Restore soft deleted record.
-        """
+        
         self.is_deleted = False
         self.deleted_at = None
         self.deleted_by = None

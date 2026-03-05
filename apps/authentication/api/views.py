@@ -75,7 +75,30 @@ class OTPVerifyBaseClass(APIView):
         try:
             user = verify_otp(email, self.purpose, otp)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            error_message = str(e)
+
+            if error_message == "LOCKED":
+                return Response(
+                    {
+                        "error": "Too many attempts",
+                        "attempts_left": 0,
+                        "locked": True,
+                    },
+                    status=400,
+                )
+
+            if error_message.startswith("INVALID:"):
+                remaining = int(error_message.split(":")[1])
+                return Response(
+                    {
+                        "error": "Invalid OTP",
+                        "attempts_left": remaining,
+                        "locked": False,
+                    },
+                    status=400,
+                )
+
+            return Response({"error": error_message}, status=400)
 
         refresh = RefreshToken.for_user(user)
 
@@ -132,7 +155,7 @@ class LoginView(APIView):
         email = request.data.get("email")
         password = request.data.get("password")
 
-        # Try to fetch user first (for lock check)
+       
         user_model = (
             authenticate.__self__.get_user_model()
             if hasattr(authenticate, "__self__")

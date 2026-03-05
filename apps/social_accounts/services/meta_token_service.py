@@ -54,7 +54,7 @@ class MetaTokenService:
         if expires_in:
             account.token_expires_at = timezone.now() + timedelta(seconds=int(expires_in))
         else:
-            # Fallback (Meta long-lived ≈ 60 days)
+            
             account.token_expires_at = timezone.now() + timedelta(days=60)
 
         account.refresh_failed_count = 0

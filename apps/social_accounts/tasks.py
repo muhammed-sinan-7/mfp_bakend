@@ -8,11 +8,7 @@ from apps.social_accounts.services.meta_sync_service import MetaSyncService
 from apps.social_accounts.models import SocialProvider
 @shared_task
 def dispatch_expiring_meta_refresh_tasks():
-    """
-    Runs every 12 hours.
-    Finds META accounts expiring within 5 days.
-    Dispatches individual refresh tasks.
-    """
+   
 
     threshold = timezone.now() + timedelta(days=5)
 
@@ -28,10 +24,7 @@ def dispatch_expiring_meta_refresh_tasks():
 
 @shared_task(bind=True, max_retries=3)
 def refresh_meta_account_task(self, account_id: int):
-    """
-    Refresh a single Meta account.
-    Each account runs independently.
-    """
+    
 
     from apps.social_accounts.services.meta_token_service import MetaTokenService
 

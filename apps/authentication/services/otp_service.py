@@ -13,21 +13,21 @@ def generate_otp():
 
 def create_otp(email, purpose):
     try:
-        # Use .only to speed up DB fetch
+        
         user = User.objects.only('id').get(email=email)
     except User.DoesNotExist:
         raise Exception("User not found")
 
-    # Invalidate old tokens
+    
     OTPToken.objects.filter(user=user, purpose=purpose, is_used=False).update(is_used=True)
 
     otp = generate_otp()
     
-    # Hashing takes ~250ms. This is the "fastest" secure way.
+    
     otp_hash = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
     expires_at = timezone.now() + timedelta(minutes=5)
 
-    # Save to DB
+    
     OTPToken.objects.create(
         user=user, 
         otp_hash=otp_hash, 
@@ -35,7 +35,7 @@ def create_otp(email, purpose):
         expires_at=expires_at
     )
 
-    # Offload the 6-second email wait to Celery
+    
     send_otp_email_task.delay(email, otp)
     
     return True
@@ -52,13 +52,19 @@ def verify_otp(email, purpose, otp_input):
         raise Exception("OTP invalid or expired")
 
     if otp_obj.attempt_count >= 5:
-        raise Exception("Too many attempts")
+        raise Exception("Too many attempts|0")
 
-    # Verify the hash
+    
     if not bcrypt.checkpw(otp_input.encode(), otp_obj.otp_hash.encode()):
         otp_obj.attempt_count += 1
         otp_obj.save(update_fields=["attempt_count"])
-        raise Exception("Invalid OTP")
+
+        remaining = 5 - otp_obj.attempt_count
+
+        if remaining <= 0:
+            raise Exception("LOCKED")
+
+        raise Exception(f"INVALID:{remaining}")
 
     otp_obj.is_used = True
     otp_obj.save(update_fields=["is_used"])

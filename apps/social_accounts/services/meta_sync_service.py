@@ -24,7 +24,17 @@ class MetaSyncService:
             page_name = page["name"]
             page_token = page["access_token"]
 
-            # ---- Save Facebook Page ----
+            # 1️⃣ Create/Update MetaPage (THIS WAS MISSING)
+            meta_page, _ = MetaPage.objects.update_or_create(
+                social_account=social_account,
+                page_id=page_id,
+                defaults={
+                    "name": page_name,
+                    "page_access_token": page_token,
+                }
+            )
+
+            # 2️⃣ Create PublishingTarget for Facebook Page
             publishing_target, _ = PublishingTarget.objects.update_or_create(
                 social_account=social_account,
                 resource_id=page_id,
@@ -37,7 +47,7 @@ class MetaSyncService:
 
             synced_targets.append(publishing_target)
 
-            # ---- Fetch Instagram ----
+            # 3️⃣ Fetch Instagram Business Account
             try:
                 ig_data = oauth_service.fetch_instagram_account(
                     page_id=page_id,
@@ -53,6 +63,11 @@ class MetaSyncService:
                         page_token=page_token
                     )
 
+                    # 4️⃣ Update MetaPage with IG Business ID
+                    meta_page.instagram_business_id = ig_id
+                    meta_page.save(update_fields=["instagram_business_id"])
+
+                    # 5️⃣ Create PublishingTarget for Instagram
                     ig_target, _ = PublishingTarget.objects.update_or_create(
                         social_account=social_account,
                         resource_id=ig_id,

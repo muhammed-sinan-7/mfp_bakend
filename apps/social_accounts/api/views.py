@@ -21,10 +21,14 @@ from apps.social_accounts.models import SocialAccount,SocialProvider,PublishingT
 from apps.social_accounts.services.meta_sync_service import MetaSyncService
 from ..tasks import sync_meta_pages_task
 from apps.social_accounts.services.linkedin import LinkedInService
+from .serializers import SocialAccountSerializer
 from apps.social_accounts.services.youtube import YouTubeOAuthService
 from datetime import timedelta
 from django.utils import timezone
-
+from rest_framework.generics import ListAPIView
+from apps.social_accounts.models import PublishingTarget
+from .serializers import PublishingTargetSerializer
+from apps.organizations.mixins import OrganizationContextMixin
 class MetaConnectView(OrganizationContextMixin,APIView):
     permission_classes = [AllowAny]
 
@@ -101,7 +105,7 @@ class MetaCallbackView(APIView):
             payload_json = base64.urlsafe_b64decode(payload_b64.encode())
             payload = json.loads(payload_json)
 
-            # expire after 10 minutes
+            
             if time.time() - payload["timestamp"] > 600:
                 return None
 
@@ -137,10 +141,6 @@ class MetaCallbackView(APIView):
             return Response(long_token_data, status=400)
 
         long_token = long_token_data["access_token"]
-
-    
-        from django.utils import timezone
-        from datetime import timedelta
 
         expires_in = long_token_data.get("expires_in", 60 * 24 * 60 * 60)
         expires_at = timezone.now() + timedelta(seconds=expires_in)
@@ -247,7 +247,6 @@ class LinkedInCallbackView(OrganizationContextMixin,APIView):
         return redirect(f"{settings.FRONTEND_SUCCESS_URL}/accounts")
     
 
-from .serializers import SocialAccountSerializer
 class SocialAccountListView(OrganizationContextMixin,APIView):
     permission_classes = [IsAuthenticated]
 
@@ -290,7 +289,7 @@ class YouTubeCallbackView(APIView):
         org_id = YouTubeOAuthService.validate_state(state)
 
         token_data = YouTubeOAuthService.exchange_code(code)
-
+        
         access_token = token_data.get("access_token")
         refresh_token = token_data.get("refresh_token")
         expires_in = token_data.get("expires_in", 3600)
@@ -330,3 +329,13 @@ class YouTubeCallbackView(APIView):
         )
 
         return redirect(f"{settings.FRONTEND_SUCCESS_URL}/accounts")
+    
+    
+class PublishingTargetListAPIView(OrganizationContextMixin, ListAPIView):
+    serializer_class = PublishingTargetSerializer
+
+    def get_queryset(self):
+        return PublishingTarget.objects.filter(
+            social_account__organization=self.request.organization,
+            is_active=True
+        )

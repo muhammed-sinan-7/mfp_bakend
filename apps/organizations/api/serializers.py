@@ -11,11 +11,11 @@ class OrganizationCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         name = validated_data["name"]
 
-        # Generate base slug
+        
         base_slug = slugify(name)
         slug = base_slug
 
-        # Ensure uniqueness
+        
         counter = 1
         while Organization.objects.filter(slug=slug).exists():
             slug = f"{base_slug}-{counter}"

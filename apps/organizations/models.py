@@ -66,9 +66,9 @@ class OrganizationMember(SoftDeleteModel,BaseModel):
 
     class Meta:
         constraints = [
-            # A user can belong to only one organization
+          
             models.UniqueConstraint(fields=["user"], name="unique_user_membership"),
-            # Only one active OWNER per organization
+            
             models.UniqueConstraint(
                 fields=["user"],
                 condition=models.Q(is_deleted=False),

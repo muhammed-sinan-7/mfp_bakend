@@ -3,7 +3,8 @@ from .views import( MetaConnectView, MetaCallbackView,
                    LinkedInCallbackView,LinkedInConnectView,
                    SocialAccountListView,
                    YouTubeCallbackView,
-                   YouTubeConnectView)
+                   YouTubeConnectView,
+                   PublishingTargetListAPIView)
 
 urlpatterns = [
     
@@ -14,4 +15,5 @@ urlpatterns = [
     path("linkedin/callback/", LinkedInCallbackView.as_view()),
     path("youtube/connect/", YouTubeConnectView.as_view()),
     path("youtube/callback/", YouTubeCallbackView.as_view()),
+    path("publishing-targets/", PublishingTargetListAPIView.as_view()),
 ]

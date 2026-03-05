@@ -7,10 +7,44 @@ from common.models import BaseModel
 
 
 class SocialProvider(models.TextChoices):
-    META = "META","Meta",
-    INSTAGRAM = "INSTAGRAM",
-    LINKEDIN = "LINKEDIN","LinkedIn"
-    YOUTUBE = "YOUTUBE",'YouTube'
+    META = "meta", "Meta"
+    INSTAGRAM = "instagram", "Instagram"
+    LINKEDIN = "linkedin", "LinkedIn"
+    YOUTUBE = "youtube", "YouTube"
+    
+    @staticmethod
+    def ui_meta(provider):
+        meta = {
+            "linkedin": {
+                "brand_color": "#0A66C2",
+                "text_color": "#FFFFFF",
+                "icon": "linkedin",
+            },
+            "instagram": {
+                "brand_color": "#E1306C",
+                "text_color": "#FFFFFF",
+                "icon": "instagram",
+            },
+            "youtube": {
+                "brand_color": "#FF0000",
+                "text_color": "#FFFFFF",
+                "icon": "youtube",
+            },
+            "facebook": {
+                "brand_color": "#1877F2",
+                "text_color": "#FFFFFF",
+                "icon": "facebook",
+            },
+        }
+
+        return meta.get(
+            provider,
+            {
+                "brand_color": "#6B7280",
+                "text_color": "#FFFFFF",
+                "icon": "default",
+            },
+        )
     
     
 class SocialAccount(BaseModel):
