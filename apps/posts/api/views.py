@@ -35,7 +35,7 @@ class PostCreateAPIView(OrganizationContextMixin,APIView):
         )
         
         
-class PostListView(generics.ListAPIView):
+class PostListView(OrganizationContextMixin,generics.ListAPIView):
 
     serializer_class = PostListSerializer
     permission_classes = [IsAuthenticated]
@@ -54,7 +54,7 @@ class PostListView(generics.ListAPIView):
             .order_by("-created_at")
         )
         
-class PostUpdateView(APIView):
+class PostUpdateView(OrganizationContextMixin,APIView):
 
     permission_classes = [IsAuthenticated]
 
@@ -91,7 +91,7 @@ class PostUpdateView(APIView):
         return Response({"message": "Post updated"})
         
         
-class PostDetailView(generics.RetrieveAPIView):
+class PostDetailView(OrganizationContextMixin,generics.RetrieveAPIView):
 
     serializer_class = PostDetailSerializer
     permission_classes = [IsAuthenticated]
@@ -108,7 +108,7 @@ class PostDetailView(generics.RetrieveAPIView):
             )
         )
         
-class PostDeleteView(APIView):
+class PostDeleteView(OrganizationContextMixin,APIView):
 
     permission_classes = [IsAuthenticated]
 
@@ -128,7 +128,7 @@ class PostDeleteView(APIView):
         return Response({"message": "Post moved to recycle bin"})
     
 
-class PostRestoreView(APIView):
+class PostRestoreView(OrganizationContextMixin,APIView):
 
     permission_classes = [IsAuthenticated]
 
@@ -147,7 +147,7 @@ class PostRestoreView(APIView):
 
         return Response({"message": "Post restored"})
     
-class RecycleBinListView(ListAPIView):
+class RecycleBinListView(OrganizationContextMixin,ListAPIView):
 
     serializer_class = PostListSerializer
     permission_classes = [IsAuthenticated]
