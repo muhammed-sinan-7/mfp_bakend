@@ -23,7 +23,7 @@ class InstagramPublisher(BasePublisher):
 
         ig_user_id = publishing_target.resource_id
 
-        # Get MetaPage access token
+        
         meta_page = MetaPage.objects.filter(
             social_account=publishing_target.social_account,
             instagram_business_id=ig_user_id
@@ -36,16 +36,6 @@ class InstagramPublisher(BasePublisher):
 
         
         image_url = urljoin(settings.BASE_URL, media.file.url)
-        print("BASE_URL:", settings.BASE_URL)
-        print("MEDIA FILE URL:", media.file.url)
-        print("FINAL IMAGE URL:", image_url)
-        try:
-            test = requests.get(image_url, timeout=5)
-            print("FETCH STATUS:", test.status_code)
-            print("CONTENT TYPE:", test.headers.get("Content-Type"))
-        except Exception as e:
-            print("FETCH FAILED:", str(e))
-            raise Exception("Image not publicly accessible")
         
         create_url = f"{self.BASE_URL}/{ig_user_id}/media"
 
@@ -56,8 +46,7 @@ class InstagramPublisher(BasePublisher):
         }
 
         create_response = requests.post(create_url, data=create_payload,timeout=30)
-        print("CREATE STATUS:", create_response.status_code)
-        print("CREATE RESPONSE:", create_response.text)
+        
         if create_response.status_code != 200:
             raise Exception(f"IG container failed: {create_response.text}")
 
@@ -74,7 +63,7 @@ class InstagramPublisher(BasePublisher):
         publish_response = requests.post(publish_url, data=publish_payload)
 
         if publish_response.status_code != 200:
-            raise Exception(f"IG publish failed: {publish_response.text}")
+            raise Exception(f"Instagram publish failed: {publish_response.text}")
 
         return {
             "external_id": publish_response.json()["id"]

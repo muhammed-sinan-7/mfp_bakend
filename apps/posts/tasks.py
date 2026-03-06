@@ -82,7 +82,7 @@ def dispatch_scheduled_platforms():
                 scheduled_time__lte=now,
                 post__is_deleted=False,
             )
-            .order_by("scheduled_time")[:50]
+            .order_by("scheduled_time")[:BATCH_SIZE]
         )
 
         platform_ids = list(platforms.values_list("id", flat=True))

@@ -3,7 +3,6 @@ from django.conf import settings
 
 
 class AuditLog(models.Model):
-    
 
     class ActionType(models.TextChoices):
         LOGIN_SUCCESS = "LOGIN_SUCCESS", "Login Success"
@@ -16,24 +15,25 @@ class AuditLog(models.Model):
         ORG_DELETED = "ORG_DELETED", "Organization Deleted"
         MEMBER_REMOVED = "MEMBER_REMOVED", "Member Removed"
         ROLE_CHANGED = "ROLE_CHANGED", "Role Changed"
-        
-    SEVERITY_CHOICES = (
-    ("INFO", "Info"),
-    ("WARNING", "Warning"),
-    ("CRITICAL", "Critical"),
-)
+        POST_CREATED = "POST_CREATED", "Post Created"
 
-    severity = models.CharField(
-        max_length=10,
-        choices=SEVERITY_CHOICES,
-        default="INFO"
+        POST_UPDATED = "POST_UPDATED", "Post Updated"
+        POST_DELETED = "POST_DELETED", "Post Deleted"
+        POST_RESTORED = "POST_RESTORED", "Post Restored"
+
+    SEVERITY_CHOICES = (
+        ("INFO", "Info"),
+        ("WARNING", "Warning"),
+        ("CRITICAL", "Critical"),
     )
+
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default="INFO")
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="audit_logs"
+        related_name="audit_logs",
     )
 
     organization = models.ForeignKey(
@@ -41,14 +41,10 @@ class AuditLog(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        db_index=True
+        db_index=True,
     )
 
-    action = models.CharField(
-        max_length=50,
-        choices=ActionType.choices,
-        db_index=True
-    )
+    action = models.CharField(max_length=50, choices=ActionType.choices, db_index=True)
 
     target_model = models.CharField(max_length=100, null=True, blank=True)
     target_id = models.CharField(max_length=100, null=True, blank=True)

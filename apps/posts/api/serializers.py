@@ -112,6 +112,7 @@ class PlatformSummarySerializer(serializers.ModelSerializer):
             "publish_status",
             "scheduled_time",
             "external_post_id",
+            "caption"
         ]
 
 
@@ -126,6 +127,8 @@ class PostListSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "platforms",
+            
+            
         ]
         
 
