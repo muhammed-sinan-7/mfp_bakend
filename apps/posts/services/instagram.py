@@ -1,8 +1,12 @@
 import requests
+import time
 from django.conf import settings
 from .base import BasePublisher
 from apps.social_accounts.models import MetaPage
 from urllib.parse import urljoin
+from PIL import Image
+from rest_framework.exceptions import ValidationError
+
 
 
 class InstagramPublisher(BasePublisher):
@@ -10,23 +14,19 @@ class InstagramPublisher(BasePublisher):
     BASE_URL = "https://graph.facebook.com/v18.0"
 
     def publish(self, post_platform):
-        
 
-        post = post_platform.post
         publishing_target = post_platform.publishing_target
 
-        
-        media = post_platform.media.all().filter(media_type="IMAGE").first()
+        media_items = post_platform.media.all().order_by("order")
 
-        if not media:
-            raise Exception("Instagram requires an image")
+        if not media_items.exists():
+            raise Exception("Instagram requires media")
 
         ig_user_id = publishing_target.resource_id
 
-        
         meta_page = MetaPage.objects.filter(
             social_account=publishing_target.social_account,
-            instagram_business_id=ig_user_id
+            instagram_business_id=ig_user_id,
         ).first()
 
         if not meta_page:
@@ -34,25 +34,100 @@ class InstagramPublisher(BasePublisher):
 
         access_token = meta_page.page_access_token
 
-        
-        image_url = urljoin(settings.BASE_URL, media.file.url)
-        
         create_url = f"{self.BASE_URL}/{ig_user_id}/media"
 
-        create_payload = {
-            "image_url": image_url,
-            "caption": post_platform.caption or "",
-            "access_token": access_token,
-        }
-
-        create_response = requests.post(create_url, data=create_payload,timeout=30)
         
-        if create_response.status_code != 200:
-            raise Exception(f"IG container failed: {create_response.text}")
+        if media_items.count() == 1:
 
-        container_id = create_response.json()["id"]
+            media = media_items.first()
+
+            file_url = urljoin(settings.BASE_URL, media.file.url)
+
+            payload = {
+                "caption": post_platform.caption or "",
+                "access_token": access_token,
+            }
+
+            if media.media_type == "IMAGE":
+                payload["image_url"] = file_url
+
+            elif media.media_type == "VIDEO":
+                payload["video_url"] = file_url
+                payload["media_type"] = "REELS"
+
+            create_res = requests.post(create_url, data=payload)
+
+            if create_res.status_code != 200:
+                raise Exception(create_res.text)
+
+            container_id = create_res.json()["id"]
 
         
+        else:
+
+            children = []
+
+            for media in media_items:
+
+                file_url = urljoin(settings.BASE_URL, media.file.url)
+
+                payload = {
+                    "is_carousel_item": True,
+                    "access_token": access_token,
+                }
+
+                if media.media_type == "IMAGE":
+                    payload["image_url"] = file_url
+
+                else:
+                    payload["video_url"] = file_url
+                    payload["media_type"] = "REELS"
+
+                child_res = requests.post(create_url, data=payload)
+
+                if child_res.status_code != 200:
+                    raise Exception(child_res.text)
+
+                children.append(child_res.json()["id"])
+
+            carousel_payload = {
+                "media_type": "CAROUSEL",
+                "children": ",".join(children),
+                "caption": post_platform.caption or "",
+                "access_token": access_token,
+            }
+
+            carousel_res = requests.post(create_url, data=carousel_payload)
+
+            if carousel_res.status_code != 200:
+                raise Exception(carousel_res.text)
+
+            container_id = carousel_res.json()["id"]
+
+       
+        status_url = f"{self.BASE_URL}/{container_id}"
+
+        for _ in range(10):
+
+            status_res = requests.get(
+                status_url,
+                params={
+                    "fields": "status_code",
+                    "access_token": access_token,
+                },
+            )
+
+            status = status_res.json().get("status_code")
+
+            if status == "FINISHED":
+                break
+
+            if status == "ERROR":
+                raise Exception("Instagram media processing failed")
+
+            time.sleep(5)
+
+     
         publish_url = f"{self.BASE_URL}/{ig_user_id}/media_publish"
 
         publish_payload = {
@@ -60,11 +135,9 @@ class InstagramPublisher(BasePublisher):
             "access_token": access_token,
         }
 
-        publish_response = requests.post(publish_url, data=publish_payload)
+        publish_res = requests.post(publish_url, data=publish_payload)
 
-        if publish_response.status_code != 200:
-            raise Exception(f"Instagram publish failed: {publish_response.text}")
+        if publish_res.status_code != 200:
+            raise Exception(publish_res.text)
 
-        return {
-            "external_id": publish_response.json()["id"]
-        }
+        return {"external_id": publish_res.json()["id"]}

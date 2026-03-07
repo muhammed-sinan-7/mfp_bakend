@@ -9,8 +9,36 @@ from apps.posts.models import Post, PostPlatform, PostPlatformMedia, MediaType
 from apps.social_accounts.models import PublishingTarget
 from rest_framework import serializers
 from django.utils import timezone
-
 from apps.posts.models import PostPlatform
+from PIL import Image
+from rest_framework.exceptions import ValidationError
+
+
+
+from PIL import Image
+from rest_framework.exceptions import ValidationError
+
+def validate_instagram_image(file):
+    file.seek(0)
+
+    img = Image.open(file).convert("RGB")
+    width, height = img.size
+
+    if height == 0:
+        raise ValidationError("Invalid image file.")
+
+    ratio = width / height
+
+    print("INSTAGRAM IMAGE DEBUG:", width, height, ratio)  # temporary debug
+
+    if ratio < 0.8 or ratio > 1.91:
+        raise ValidationError(
+            f"Instagram aspect ratio invalid ({ratio:.2f}). "
+            "Allowed range: 4:5 – 1.91:1. "
+            "Recommended: 1080x1080, 1080x1350, 1080x566."
+        )
+
+    file.seek(0)
 
 class PostCreateSerializer(serializers.Serializer):
 
@@ -20,8 +48,7 @@ class PostCreateSerializer(serializers.Serializer):
         child=serializers.UUIDField(),
         allow_empty=False
     )
-
-
+    
     def validate(self, attrs):
 
         request = self.context["request"]
@@ -51,7 +78,6 @@ class PostCreateSerializer(serializers.Serializer):
         scheduled_time = validated_data["scheduled_time"]
         target_ids = validated_data["publishing_target_ids"]
 
-       
         post = Post.objects.create(
             organization=organization,
             created_by=request.user
@@ -69,30 +95,43 @@ class PostCreateSerializer(serializers.Serializer):
             )
 
             target_id_str = str(target.id)
-
-            image_key = f"image_{target_id_str}"
-            video_key = f"video_{target_id_str}"
-
             order = 0
 
-            if image_key in request.FILES:
-                PostPlatformMedia.objects.create(
-                    post_platform=platform,
-                    file=request.FILES[image_key],
-                    media_type=MediaType.IMAGE,
-                    order=order
-                )
-                order += 1
+            for key, file in request.FILES.items():
 
-        
-            if video_key in request.FILES:
-                PostPlatformMedia.objects.create(
-                    post_platform=platform,
-                    file=request.FILES[video_key],
-                    media_type=MediaType.VIDEO,
-                    order=order
-                )
-                order += 1
+                # Instagram max media
+                if target.provider == "instagram" and order >= 10:
+                    raise ValidationError("Instagram allows max 10 media items.")
+
+                # IMAGE
+                if key.startswith(f"image_{target_id_str}"):
+
+                    if target.provider == "youtube":
+                        raise ValidationError("YouTube only supports video uploads.")
+
+                    if target.provider == "instagram":
+                        validate_instagram_image(file)
+
+                    PostPlatformMedia.objects.create(
+                        post_platform=platform,
+                        file=file,
+                        media_type=MediaType.IMAGE,
+                        order=order
+                    )
+
+                    order += 1
+
+                # VIDEO
+                elif key.startswith(f"video_{target_id_str}"):
+
+                    PostPlatformMedia.objects.create(
+                        post_platform=platform,
+                        file=file,
+                        media_type=MediaType.VIDEO,
+                        order=order
+                    )
+
+                    order += 1
 
         return post
     

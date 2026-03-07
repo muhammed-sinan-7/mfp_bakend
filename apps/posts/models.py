@@ -178,13 +178,6 @@ class PostPlatformMedia(models.Model):
 
         if provider == "instagram" and total_media >= 10:
             raise ValidationError("Instagram max 10 media items.")
-        if provider == "instagram":
-            if MediaType.VIDEO in existing_types and self.media_type == MediaType.IMAGE:
-                raise ValidationError("Instagram cannot mix video and image.")
-            if MediaType.IMAGE in existing_types and self.media_type == MediaType.VIDEO:
-                raise ValidationError("Instagram cannot mix image and video.")
-            if self.post_platform.media.count() >= 10:
-                raise ValidationError("Instagram max 10 media items.")
 
     def save(self, *args, **kwargs):
         self.full_clean()
