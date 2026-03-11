@@ -4,6 +4,7 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 from apps.social_accounts.models import SocialAccount
+from apps.social_accounts.services.youtube import YouTubeOAuthService
 from apps.social_accounts.services.meta_sync_service import MetaSyncService
 from apps.social_accounts.models import SocialProvider
 @shared_task
@@ -47,14 +48,15 @@ def sync_meta_pages_task(social_account_id):
 @shared_task(bind=True, max_retries=3)
 def refresh_youtube_account_task(self, account_id):
 
-    from apps.social_accounts.services.youtube import YouTubeOAuthService
+    account = SocialAccount.objects.filter(id=account_id).first()
+
+    if not account:
+        return
+
+    if not account.refresh_token:
+        return
 
     try:
-        account = SocialAccount.objects.get(id=account_id)
-
-        if not account.refresh_token:
-            return
-
         token_data = YouTubeOAuthService.refresh_access_token(
             account.refresh_token
         )

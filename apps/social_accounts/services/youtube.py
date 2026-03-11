@@ -87,7 +87,7 @@ class YouTubeOAuthService:
     )
 
         if response.status_code != 200:
-            raise Exception("YouTube token refresh failed")
+            raise Exception(f"YouTube token refresh failed: {response.text}")
 
         return response.json()
 

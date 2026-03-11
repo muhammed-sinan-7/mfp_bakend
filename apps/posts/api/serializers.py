@@ -82,7 +82,7 @@ class PostCreateSerializer(serializers.Serializer):
             organization=organization,
             created_by=request.user
         )
-
+        
         targets = PublishingTarget.objects.filter(id__in=target_ids)
 
         for target in targets:
@@ -158,6 +158,7 @@ class PlatformSummarySerializer(serializers.ModelSerializer):
 class PostListSerializer(serializers.ModelSerializer):
 
     platforms = PlatformSummarySerializer(many=True, read_only=True)
+    author = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -165,11 +166,15 @@ class PostListSerializer(serializers.ModelSerializer):
             "id",
             "created_at",
             "updated_at",
+            "deleted_at",
+            "author",
             "platforms",
-            
-            
         ]
-        
+
+    def get_author(self, obj):
+        if obj.created_by:
+            return obj.created_by.email
+        return None
 
 
 

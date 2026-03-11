@@ -14,6 +14,8 @@ class MetaOAuthService:
         "pages_manage_posts",
         "instagram_basic",
         "instagram_content_publish",
+        "instagram_manage_insights",
+        "pages_read_user_content",
     ]
 
     def exchange_code(self, code: str):
@@ -88,5 +90,6 @@ class MetaOAuthService:
             "scope": ",".join(self.SCOPES),
             "response_type": "code",
             "state": state,
+            "auth_type": "rerequest",
         }
         return f"{self.AUTH_BASE_URL}?{urlencode(params)}"

@@ -200,6 +200,52 @@ class RecycleBinListView(OrganizationContextMixin, ListAPIView):
 
     def get_queryset(self):
 
-        return Post.objects.filter(
-            organization=self.request.organization, is_deleted=True
-        ).order_by("-deleted_at")
+        return (
+            Post.objects.filter(
+                organization=self.request.organization,
+                is_deleted=True
+            )
+            .select_related("created_by")
+            .prefetch_related(
+                "platforms",
+                "platforms__publishing_target",
+                "platforms__media"
+            )
+            .order_by("-deleted_at")
+        )
+
+class EmptyRecycleBinView(OrganizationContextMixin, APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+
+        deleted_posts = Post.objects.filter(
+            organization=request.organization,
+            is_deleted=True
+        )
+
+        count = deleted_posts.count()
+
+        deleted_posts.delete()
+
+        return Response({
+            "message": "Recycle bin emptied",
+            "deleted_count": count
+        })
+        
+class PermanentDeletePostView(OrganizationContextMixin, APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+
+        post = Post.objects.get(
+            id=pk,
+            organization=request.organization,
+            is_deleted=True
+        )
+
+        post.delete()
+
+        return Response({"message": "Post permanently deleted"})

@@ -20,7 +20,7 @@ app.conf.beat_schedule = {
     },
     "refresh-youtube-tokens-every-15-minutes": {
         "task": "apps.social_accounts.tasks.dispatch_expiring_youtube_refresh_tasks",
-        "schedule": crontab(minute="*/15"),
+        "schedule": crontab(minute="*/1"),
     },
     "dispatch-scheduled-platforms-every-minute": {
         "task": "apps.posts.tasks.dispatch_scheduled_platforms",
@@ -30,4 +30,8 @@ app.conf.beat_schedule = {
         "task": "apps.posts.purge_recycle_bin",
         "schedule": 3600,
     },
+    "sync-post-analytics": {
+        "task": "apps.analytics.tasks.sync_post_analytics",
+        "schedule": 100,
+    }
 }
