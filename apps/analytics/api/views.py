@@ -1,4 +1,4 @@
-from django.db.models import Sum,Max
+from django.db.models import Sum, Max, OuterRef, Subquery
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from apps.posts.models import Post
@@ -41,26 +41,28 @@ class AnalyticsOverviewView(OrganizationContextMixin, APIView):
 
         data = analytics.aggregate(
             impressions=Sum("impressions"),
-            views=Max("views"),
+            views=Sum("views"),
             likes=Sum("likes"),
             comments=Sum("comments"),
             shares=Sum("shares"),
         )
 
-        total_engagement = (
-            (data["likes"] or 0) + (data["comments"] or 0) + (data["shares"] or 0)
-        )
-
         impressions = data["impressions"] or 0
+        views = data["views"] or 0
+        likes = data["likes"] or 0
+        comments = data["comments"] or 0
+        shares = data["shares"] or 0
 
-        engagement_rate = total_engagement / impressions * 100 if impressions else 0
+        engagement = likes + comments + shares
+
+        engagement_rate = (engagement / views * 100) if impressions else 0
 
         return Response(
             {
-                "total_impressions": data["impressions"] or 0,
-                "total_views": data["views"] or 0,
-                "total_likes": data["likes"] or 0,
-                "total_comments": data["comments"] or 0,
+                "total_impressions": impressions,
+                "total_views": views,
+                "total_likes": likes,
+                "total_comments": comments,
                 "engagement_rate": round(engagement_rate, 2),
             }
         )
@@ -118,108 +120,135 @@ class EngagementChartView(OrganizationContextMixin, APIView):
         org = request.organization
         platform = request.query_params.get("platform")
 
-        qs = PostPlatformAnalyticsSnapshot.objects.filter(
+        snapshots = PostPlatformAnalyticsSnapshot.objects.filter(
             post_platform__post__organization=org
-        )
+        ).annotate(hour=TruncHour("captured_at"))
 
         if platform and platform != "overview":
-            qs = qs.filter(
+            snapshots = snapshots.filter(
                 post_platform__publishing_target__provider=platform
             )
 
+        # latest snapshot per post per hour
+        latest_per_hour = snapshots.values("post_platform_id", "hour").annotate(
+            latest_time=Max("captured_at")
+        )
+
+        qs = snapshots.filter(
+            captured_at__in=[row["latest_time"] for row in latest_per_hour]
+        )
+
+        # aggregate views per hour
         qs = (
-            qs.annotate(time=TruncHour("captured_at"))
-            .values(
-                "time",
-                "post_platform__publishing_target__provider"
-            )
-            .annotate(
-                views=Max("views")
-            )
-            .order_by("time")
+            qs.values("hour", "post_platform__publishing_target__provider")
+            .annotate(views=Sum("views"))
+            .order_by("hour")
         )
 
         data = {}
 
         for row in qs:
 
-            time = row["time"]
+            time = row["hour"]
             provider = row["post_platform__publishing_target__provider"]
+
             if provider == "meta":
                 provider = "instagram"
+
             views = row["views"] or 0
 
             if time not in data:
-                data[time] = {"date": time}
+                data[time] = {"date": time, "instagram": 0, "youtube": 0, "linkedin": 0}
 
             data[time][provider] = views
 
         return Response(list(data.values()))
-    
-    
-    
-class EngagementDistributionAPIView(APIView):
+
+
+class EngagementDistributionAPIView(OrganizationContextMixin, APIView):
 
     def get(self, request):
 
-        qs = (
-            PostPlatformAnalyticsSnapshot.objects
-            .values("platform")
-            .annotate(
-                engagement=Sum(
-                    F("likes") + F("comments") + F("shares") + F("saves")
-                )
-            )
+        org = request.organization
+
+        qs = PostPlatformAnalyticsSnapshot.objects.filter(
+            post_platform__post__organization=org
         )
 
-        total = sum(item["engagement"] for item in qs)
+        # latest snapshot per post
+        latest_ids = (
+            qs.order_by("post_platform", "-captured_at")
+            .distinct("post_platform")
+            .values_list("id", flat=True)
+        )
+
+        latest = PostPlatformAnalyticsSnapshot.objects.filter(id__in=latest_ids)
+
+        platform_data = latest.values(
+            "post_platform__publishing_target__provider"
+        ).annotate(
+            engagement=Sum(F("likes") + F("comments") + F("shares") + F("saves"))
+        )
+
+        total = sum(item["engagement"] or 0 for item in platform_data)
+
+        data = []
+
+        for item in platform_data:
+
+            platform = item["post_platform__publishing_target__provider"]
+            engagement = item["engagement"] or 0
+
+            percent = (engagement / total * 100) if total else 0
+
+            data.append(
+                {
+                    "platform": platform,
+                    "engagement": engagement,
+                    "percentage": round(percent, 1),
+                }
+            )
+
+        return Response(data)
+
+
+class RecentPostsAPIView(OrganizationContextMixin, APIView):
+
+    def get(self, request):
+
+        org = request.organization
+
+        qs = (
+            PostPlatformAnalytics.objects.filter(post_platform__post__organization=org)
+            .select_related(
+                "post_platform",
+                "post_platform__post",
+                "post_platform__publishing_target",
+            )
+            .order_by("-created_at")[:10]
+        )
 
         data = []
 
         for item in qs:
-            percent = (item["engagement"] / total * 100) if total else 0
 
-            data.append({
-                "platform": item["platform"],
-                "engagement": item["engagement"],
-                "percentage": round(percent, 1)
-            })
+            engagement = item.likes + item.comments + item.shares + item.saves
 
-        return Response(data)
-    
-    
-class RecentPostsAPIView(APIView):
+            platform = item.post_platform.publishing_target.provider
 
-    def get(self, request):
+            impressions = item.impressions or item.views
 
-        latest_snapshots = (
-            PostPlatformAnalyticsSnapshot.objects
-            .order_by("post_platform", "-snapshot_time")
-            .distinct("post_platform")
-            .select_related("post_platform__post")
-        )
+            engagement_rate = (engagement / impressions * 100) if impressions else 0
 
-        data = []
-
-        for snap in latest_snapshots[:10]:
-
-            engagement = (
-                snap.likes +
-                snap.comments +
-                snap.shares +
-                snap.saves
+            data.append(
+                {
+                    "post_id": item.post_platform.post.id,
+                    "title": item.post_platform.caption or "Post",
+                    "platform": platform,
+                    "impressions": impressions,
+                    "engagement_rate": round(engagement_rate, 2),
+                    "status": "High Growth" if engagement > 100 else "Standard",
+                }
             )
-
-            data.append({
-                "post_id": snap.post_platform.post.id,
-                "title": snap.post_platform.post.title,
-                "platform": snap.platform,
-                "impressions": snap.impressions,
-                "engagement_rate": round(
-                    (engagement / snap.impressions * 100) if snap.impressions else 0,
-                    2
-                ),
-                "status": "High Growth" if engagement > 100 else "Standard"
-            })
 
         return Response(data)

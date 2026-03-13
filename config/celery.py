@@ -20,7 +20,7 @@ app.conf.beat_schedule = {
     },
     "refresh-youtube-tokens-every-15-minutes": {
         "task": "apps.social_accounts.tasks.dispatch_expiring_youtube_refresh_tasks",
-        "schedule": crontab(minute="*/1"),
+        "schedule": crontab(minute="*/15"),
     },
     "dispatch-scheduled-platforms-every-minute": {
         "task": "apps.posts.tasks.dispatch_scheduled_platforms",
@@ -32,6 +32,10 @@ app.conf.beat_schedule = {
     },
     "sync-post-analytics": {
         "task": "apps.analytics.tasks.sync_post_analytics",
-        "schedule": 100,
-    }
+        "schedule": 1800,
+    },
+    "fetch-industry-news":{
+        "task":"apps.news.tasks.ingest_news",
+        "schedule":crontab(minute="*"),
+    },
 }

@@ -303,7 +303,7 @@ class YouTubeCallbackView(APIView):
 
         external_id = channel["id"]
         channel_name = channel["snippet"]["title"]
-
+        scopes = token_data.get("scope", "").split(" ")
         social_account, _ = SocialAccount.objects.update_or_create(
             organization_id=org_id,
             provider=SocialProvider.YOUTUBE,
@@ -314,6 +314,7 @@ class YouTubeCallbackView(APIView):
                 "refresh_token": refresh_token,
                 "token_expires_at": timezone.now() + timedelta(seconds=expires_in),
                 "is_active": True,
+                "scopes": scopes,
             },
         )
 

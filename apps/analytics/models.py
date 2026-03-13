@@ -8,9 +8,7 @@ class PostPlatformAnalytics(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     post_platform = models.OneToOneField(
-        PostPlatform,
-        on_delete=models.CASCADE,
-        related_name="analytics"
+        PostPlatform, on_delete=models.CASCADE, related_name="analytics"
     )
 
     impressions = models.PositiveIntegerField(default=0)
@@ -23,7 +21,7 @@ class PostPlatformAnalytics(models.Model):
     saves = models.PositiveIntegerField(default=0)
 
     watch_time = models.BigIntegerField(default=0)
-
+    traffic_sources = models.JSONField(default=list)
     engagement_rate = models.FloatField(default=0)
 
     last_synced_at = models.DateTimeField(auto_now=True)
@@ -38,11 +36,7 @@ class PostPlatformAnalytics(models.Model):
             self.engagement_rate = 0
             return
 
-        engagement = (
-            self.likes +
-            self.comments +
-            self.shares
-        )
+        engagement = self.likes + self.comments + self.shares
 
         self.engagement_rate = (engagement / base) * 100
 
@@ -54,17 +48,14 @@ class PostPlatformAnalytics(models.Model):
         indexes = [
             models.Index(fields=["post_platform"]),
         ]
-        
-        
-        
+
+
 class PostPlatformAnalyticsSnapshot(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     post_platform = models.ForeignKey(
-        PostPlatform,
-        on_delete=models.CASCADE,
-        related_name="analytics_snapshots"
+        PostPlatform, on_delete=models.CASCADE, related_name="analytics_snapshots"
     )
 
     impressions = models.PositiveIntegerField(default=0)
@@ -82,6 +73,7 @@ class PostPlatformAnalyticsSnapshot(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["post_platform"]),
+            models.Index(fields=["post_platform", "captured_at"]),
             models.Index(fields=["captured_at"]),
+            models.Index(fields=["post_platform", "captured_at", "views"]),
         ]

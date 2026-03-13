@@ -50,7 +50,8 @@ class SocialProvider(models.TextChoices):
 class SocialAccount(BaseModel):
     organization = models.ForeignKey(Organization,
                                      on_delete=models.CASCADE,
-                                     related_name="social_accounts")
+                                     related_name="social_accounts",
+                                     db_index=True)
     
     provider = models.CharField(
         max_length=20,
@@ -89,12 +90,14 @@ class PublishingTarget(BaseModel):
     social_account = models.ForeignKey(
         SocialAccount,
         on_delete=models.CASCADE,
-        related_name="publishing_targets"
+        related_name="publishing_targets",
+        db_index=True,
     )
 
     provider = models.CharField(
         max_length=20,
-        choices=SocialProvider.choices
+        choices=SocialProvider.choices,
+        db_index=True
     )
 
     resource_id = models.CharField(max_length=255)

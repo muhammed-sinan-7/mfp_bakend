@@ -42,6 +42,7 @@ urlpatterns = [
     path('api/v1/analytics/',include('apps.analytics.api.urls')),
     path("api/v1/social/", include("apps.social_accounts.api.urls")),
     path("api/v1/posts/", include("apps.posts.api.urls")),
+    path("api/v1/news/", include("apps.news.api.urls")),
     
     
     
