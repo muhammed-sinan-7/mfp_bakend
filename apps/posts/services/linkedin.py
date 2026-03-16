@@ -22,7 +22,7 @@ class LinkedInPublisher(BasePublisher):
             raise Exception("LinkedIn token expired")
 
         access_token = social_account.access_token
-        author_urn = f"urn:li:person:{social_account.external_id}"
+        author_urn = f"urn:li:person:{post_platform.publishing_target.resource_id}"
 
         headers = {
             "Authorization": f"Bearer {access_token}",

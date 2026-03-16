@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     "apps.analytics",
     "apps.news",
     "apps.audit",
-    # 'apps.ai',
+    'apps.ai',
 ]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -101,8 +101,8 @@ SWAGGER_SETTINGS = {
     },
 }
 
-CELERY_BROKER_URL = "redis://localhost:7000/1"
-CELERY_RESULT_BACKEND = "redis://localhost:7000/1"
+CELERY_BROKER_URL = "redis://localhost:6379/1"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -143,6 +143,8 @@ GOOGLE_CLIENT_ID=os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET=os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI=os.getenv("GOOGLE_REDIRECT_URI")
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -158,7 +160,7 @@ MIDDLEWARE = [
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:7000/1",
+        "LOCATION": "redis://127.0.0.1:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }

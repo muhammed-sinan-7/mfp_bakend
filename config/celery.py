@@ -36,6 +36,6 @@ app.conf.beat_schedule = {
     },
     "fetch-industry-news":{
         "task":"apps.news.tasks.ingest_news",
-        "schedule":crontab(minute="*"),
+        "schedule":crontab(minute=0,hour="*/2"),
     },
 }

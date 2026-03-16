@@ -1,11 +1,12 @@
 from .models import NewsArticle
 
 
-def get_industry_news(industry_id, limit=10):
-    
+def get_industry_news(industry_id, page=1, limit=10):
+    offset = (page - 1) * limit
+
     return (
         NewsArticle.objects
         .select_related("source")
         .filter(industry_id=industry_id)
-        .order_by("-published_at")[:limit]
+        .order_by("-published_at")[offset:offset + limit]
     )
