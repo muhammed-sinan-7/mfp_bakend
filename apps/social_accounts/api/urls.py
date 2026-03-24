@@ -4,7 +4,9 @@ from .views import( MetaConnectView, MetaCallbackView,
                    SocialAccountListView,
                    YouTubeCallbackView,
                    YouTubeConnectView,
-                   PublishingTargetListAPIView)
+                   PublishingTargetListAPIView,
+                   SocialAccountRefreshView,
+                   SocialAccountDisconnectView)
 
 urlpatterns = [
     
@@ -16,4 +18,6 @@ urlpatterns = [
     path("youtube/connect/", YouTubeConnectView.as_view()),
     path("youtube/callback/", YouTubeCallbackView.as_view()),
     path("publishing-targets/", PublishingTargetListAPIView.as_view()),
+    path("accounts/<uuid:account_id>/refresh/", SocialAccountRefreshView.as_view()),
+path("accounts/<uuid:account_id>/disconnect/", SocialAccountDisconnectView.as_view()),
 ]
