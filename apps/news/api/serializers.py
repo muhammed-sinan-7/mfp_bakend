@@ -11,6 +11,7 @@ class NewsArticleSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "summary",
+            "ai_summary",
             "url",
             "image",
             "source",

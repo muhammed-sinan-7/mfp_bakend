@@ -8,4 +8,5 @@ urlpatterns = [
         IndustryNewsAPIView.as_view(),
         name="industry-news",
     ),
+    # path("news/<uuid:pk>/summary/", NewsSummaryAPIView.as_view()),
 ]

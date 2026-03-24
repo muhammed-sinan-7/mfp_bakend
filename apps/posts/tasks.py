@@ -23,7 +23,6 @@ def publish_platform(self, platform_id):
                 .get(id=platform_id)
             )
 
-            
             if platform.external_post_id:
                 return
 
@@ -35,7 +34,7 @@ def publish_platform(self, platform_id):
 
         if account.is_token_expired():
             raise Exception("Access token expired")
-        
+
         publisher = get_publisher(platform.publishing_target.provider)
         result = publisher.publish(platform)
 
@@ -75,8 +74,7 @@ def dispatch_scheduled_platforms():
 
     with transaction.atomic():
         platforms = (
-            PostPlatform.objects
-            .select_for_update(skip_locked=True)
+            PostPlatform.objects.select_for_update(skip_locked=True)
             .filter(
                 publish_status=PublishStatus.PENDING,
                 scheduled_time__lte=now,
@@ -87,23 +85,20 @@ def dispatch_scheduled_platforms():
 
         platform_ids = list(platforms.values_list("id", flat=True))
 
-        
         PostPlatform.objects.filter(id__in=platform_ids).update(
             publish_status=PublishStatus.PROCESSING
         )
 
     for pid in platform_ids:
         publish_platform.delay(str(pid))
-        
+
+
 @shared_task
 def purge_recycle_bin():
 
     threshold = timezone.now() - timedelta(days=2)
 
-    posts = Post.objects.filter(
-        is_deleted=True,
-        deleted_at__lt=threshold
-    )
+    posts = Post.objects.filter(is_deleted=True, deleted_at__lt=threshold)
 
     count = posts.count()
 

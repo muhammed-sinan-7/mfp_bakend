@@ -7,6 +7,9 @@ from ..selectors import get_industry_news
 from .serializers import NewsArticleSerializer
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from apps.ai.services.llm_service import AIService
+from ..models import NewsArticle
+from django.shortcuts import get_object_or_404
 # Create your views here.
 @method_decorator(cache_page(60*5), name='dispatch')
 class IndustryNewsAPIView(OrganizationContextMixin, APIView):
@@ -31,3 +34,34 @@ class IndustryNewsAPIView(OrganizationContextMixin, APIView):
         serializer = NewsArticleSerializer(articles, many=True)
 
         return Response(serializer.data)
+    
+# class NewsSummaryAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, pk):
+
+#         article = get_object_or_404(NewsArticle, id=pk)
+
+#         ai = AIService()
+
+#         prompt = f"""
+# Summarize this news article in a concise, clear, professional way.
+
+# Title: {article.title}
+
+# Content:
+# {article.summary}
+
+# Rules:
+# - 10–30 lines
+# - No fluff
+# - Easy to read
+# - Keep key insights
+# """
+
+#         result = ai.chat([{"role": "user", "content": prompt}])
+
+#         return Response({
+#             "summary": result.get("response", ""),
+#             "url": article.url
+#         })

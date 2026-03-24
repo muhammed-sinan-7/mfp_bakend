@@ -101,6 +101,22 @@ SWAGGER_SETTINGS = {
     },
 }
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
+
 CELERY_BROKER_URL = "redis://localhost:6379/1"
 CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
 CELERY_ACCEPT_CONTENT = ["json"]

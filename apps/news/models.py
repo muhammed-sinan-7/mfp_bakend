@@ -32,6 +32,8 @@ class NewsArticle(models.Model):
     industry = models.ForeignKey(
         Industry, on_delete=models.PROTECT, related_name="news_articles"
     )
+    content = models.TextField(blank=True)   # full article text
+    ai_summary = models.TextField(blank=True)
     published_at = models.DateTimeField(db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

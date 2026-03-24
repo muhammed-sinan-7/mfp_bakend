@@ -1,22 +1,57 @@
-from openai import OpenAI
+import json
+import logging
 from groq import Groq
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AIService:
 
     def __init__(self):
-        self.client = Groq(api_key=settings.GROQ_API_KEY)
+        self.client = Groq(
+            api_key=settings.GROQ_API_KEY,
+            timeout=10
+        )
         self.model = "llama-3.1-8b-instant"
 
-    def generate(self, prompt: str) -> str:
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": "You are a helpful AI assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-        )
+    def chat(self, messages):
 
-        return response.choices[0].message.content
+        for attempt in range(2):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.5,
+                    max_tokens=500
+                )
+
+                text = response.choices[0].message.content.strip()
+                return {"response": text}
+
+            except Exception:
+                logger.warning("Retrying...", exc_info=True)
+
+        return {"response": ""}
+
+    def chat_json(self, messages):
+
+        raw = self.chat(messages)
+
+        try:
+            text = raw.get("response", "")
+
+            text = text.replace("```json", "").replace("```", "")
+
+            start = text.find("{")
+            end = text.rfind("}")
+
+            if start == -1 or end == -1:
+                return {}
+
+            json_str = text[start:end + 1]
+
+            return json.loads(json_str)
+
+        except Exception:
+            return {}
