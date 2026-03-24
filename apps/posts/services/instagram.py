@@ -42,7 +42,7 @@ class InstagramPublisher(BasePublisher):
             media = media_items.first()
 
             file_url = urljoin(settings.BASE_URL, media.file.url)
-
+       
             payload = {
                 "caption": post_platform.caption or "",
                 "access_token": access_token,
