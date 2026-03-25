@@ -12,6 +12,7 @@ from apps.industries.models import Industry
 class Organization(SoftDeleteModel,BaseModel):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
+    logo = models.ImageField(upload_to="organization_logos/", null=True, blank=True)
     industry = models.ForeignKey(Industry, on_delete=models.SET_NULL, null=True)
     tagline = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

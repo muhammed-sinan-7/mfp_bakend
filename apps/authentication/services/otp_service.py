@@ -1,77 +1,86 @@
+# apps/authentication/services/otp_service.py
+
 import secrets
 import bcrypt
 from datetime import timedelta
 from django.utils import timezone
-from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.core.cache import cache
+
 from apps.authentication.models import OTPToken
+from apps.authentication.exceptions import (
+    OTPCooldownException,
+    OTPInvalidException,
+    OTPLockedException,
+)
+
 from ..tasks import send_otp_email_task
 
-User = get_user_model()
 
 def generate_otp():
     return str(secrets.randbelow(900000) + 100000)
 
-def create_otp(email, purpose):
-    try:
-        
-        user = User.objects.only('id').get(email=email)
-    except User.DoesNotExist:
-        raise Exception("User not found")
 
+@transaction.atomic
+def create_otp(user, purpose):
     
-    OTPToken.objects.filter(user=user, purpose=purpose, is_used=False).update(is_used=True)
+    cache_key = f"otp_cooldown:{user.id}:{purpose}"
+
+    if cache.get(cache_key):
+        raise OTPCooldownException()
+
+    cache.set(cache_key, True, timeout=60)  
+
+   
+    OTPToken.objects.filter(
+        user=user,
+        purpose=purpose,
+        is_used=False,
+    ).update(is_used=True)
 
     otp = generate_otp()
-    
-    
+
     otp_hash = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
     expires_at = timezone.now() + timedelta(minutes=5)
 
-    
     OTPToken.objects.create(
-        user=user, 
-        otp_hash=otp_hash, 
-        purpose=purpose, 
-        expires_at=expires_at
+        user=user,
+        otp_hash=otp_hash,
+        purpose=purpose,
+        expires_at=expires_at,
     )
 
-    
-    send_otp_email_task.delay(email, otp)
-    
+    transaction.on_commit(lambda: send_otp_email_task.delay(user.email, otp))
+
     return True
 
-def verify_otp(email, purpose, otp_input):
-    try:
-        user = User.objects.get(email=email)
-    except User.DoesNotExist:
-        raise Exception("User not found")
 
-    otp_obj = OTPToken.objects.filter(user=user, purpose=purpose, is_used=False).last()
+@transaction.atomic
+def verify_otp(user, purpose, otp_input):
+    otp_obj = (
+        OTPToken.objects.filter(
+            user=user,
+            purpose=purpose,
+            is_used=False,
+        )
+        .order_by("-created_at")
+        .first()
+    )
 
     if not otp_obj or otp_obj.expires_at < timezone.now():
-        raise Exception("OTP invalid or expired")
+        raise OTPInvalidException()
 
     if otp_obj.attempt_count >= 5:
-        raise Exception("Too many attempts|0")
+        raise OTPLockedException()
 
-    
     if not bcrypt.checkpw(otp_input.encode(), otp_obj.otp_hash.encode()):
         otp_obj.attempt_count += 1
         otp_obj.save(update_fields=["attempt_count"])
 
         remaining = 5 - otp_obj.attempt_count
-
-        if remaining <= 0:
-            raise Exception("LOCKED")
-
-        raise Exception(f"INVALID:{remaining}")
+        raise OTPInvalidException(f"{remaining}")
 
     otp_obj.is_used = True
     otp_obj.save(update_fields=["is_used"])
 
-    if purpose == "email_verification":
-        user.is_active = True
-        user.is_email_verified = True
-        user.save(update_fields=["is_active", "is_email_verified"])
-
-    return user
+    return True

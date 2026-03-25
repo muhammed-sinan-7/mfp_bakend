@@ -20,6 +20,7 @@ def fetch(post_platform):
             "fields": "media_type,like_count,comments_count",
             "access_token": access_token,
         },
+        timeout=10
     )
 
     if media_res.status_code != 200:
@@ -40,6 +41,7 @@ def fetch(post_platform):
             "metric": "views,reach,saved",
             "access_token": access_token,
         },
+        timeout=10
     )
 
     if insights_res.status_code != 200:

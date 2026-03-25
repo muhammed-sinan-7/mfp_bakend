@@ -10,6 +10,9 @@ from .serializers import PostAnalyticsSerializer
 from ..models import PostPlatformAnalyticsSnapshot
 from django.db.models import F
 from django.db.models.functions import TruncHour, TruncMinute
+from django.utils.timezone import now, timedelta
+from apps.social_accounts.models import PublishingTarget
+from apps.news.selectors import get_industry_news
 
 
 class AnalyticsListView(APIView):
@@ -252,3 +255,87 @@ class RecentPostsAPIView(OrganizationContextMixin, APIView):
             )
 
         return Response(data)
+
+
+class FullDashboardAPIView(OrganizationContextMixin, APIView):
+
+    def get(self, request):
+
+        org = request.organization
+        today = now()
+        last_7_days = today - timedelta(days=7)
+
+        # ------------------ STATS ------------------
+        analytics = PostPlatformAnalytics.objects.filter(
+            post_platform__post__organization=org, created_at__gte=last_7_days
+        )
+
+        stats = analytics.aggregate(
+            reach=Sum("impressions"),
+            likes=Sum("likes"),
+            comments=Sum("comments"),
+            shares=Sum("shares"),
+        )
+
+        reach = stats["reach"] or 0
+        engagement = (
+            (stats["likes"] or 0) + (stats["comments"] or 0) + (stats["shares"] or 0)
+        )
+
+        engagement_rate = (engagement / reach * 100) if reach else 0
+
+        # ------------------ TOP POSTS ------------------
+        top_posts_qs = (
+            PostPlatformAnalytics.objects.filter(post_platform__post__organization=org)
+            .annotate(engagement=F("likes") + F("comments") + F("shares"))
+            .order_by("-engagement")[:5]
+        )
+
+        top_posts = []
+        for p in top_posts_qs:
+            top_posts.append(
+                {
+                    "title": p.post_platform.caption,
+                    "platform": p.post_platform.publishing_target.provider,
+                    "engagement": p.engagement,
+                }
+            )
+
+        # ------------------ RECENT POSTS ------------------
+        recent_qs = (
+            PostPlatform.objects.filter(post__organization=org)
+            .select_related("publishing_target")
+            .order_by("-created_at")[:5]
+        )
+
+        recent_posts = []
+        for p in recent_qs:
+            recent_posts.append(
+                {
+                    "title": p.caption,
+                    "platform": p.publishing_target.provider,
+                    "status": p.publish_status,
+                }
+            )
+
+        # ------------------ NEWS ------------------
+        news = []
+        if org.industry:
+            articles = get_industry_news(org.industry_id, page=1, limit=5)
+            for a in articles:
+                news.append(
+                    {
+                        "title": a.title,
+                        "url": a.url,
+                    }
+                )
+
+        # ------------------ RESPONSE ------------------
+        return Response(
+            {
+                "stats": {"reach": reach, "engagement_rate": round(engagement_rate, 2)},
+                "top_posts": top_posts,
+                "recent_posts": recent_posts,
+                "news": news,
+            }
+        )

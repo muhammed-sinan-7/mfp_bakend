@@ -21,6 +21,7 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from django.conf import settings
 from django.conf.urls.static import static
+from .views import health_check, readiness_check
 schema_view = get_schema_view(
     openapi.Info(
         title="MFP API",
@@ -34,7 +35,10 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    path("", include("django_prometheus.urls")),
     path('admin/', admin.site.urls),
+    path("health/", health_check),
+    path("ready/", readiness_check),
     path('api/v1/auth/', include('apps.authentication.urls')),
     path('api/v1/organizations/',include('apps.organizations.api.urls')),
     path('api/v1/industries/',include('apps.industries.api.urls')),

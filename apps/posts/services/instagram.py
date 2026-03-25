@@ -55,7 +55,7 @@ class InstagramPublisher(BasePublisher):
                 payload["video_url"] = file_url
                 payload["media_type"] = "REELS"
 
-            create_res = requests.post(create_url, data=payload)
+            create_res = requests.post(create_url, data=payload,timeout=10)
 
             if create_res.status_code != 200:
                 raise Exception(create_res.text)

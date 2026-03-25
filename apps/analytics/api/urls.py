@@ -6,13 +6,15 @@ from .views import (
     PlatformAnalyticsView,
     EngagementChartView,
     EngagementDistributionAPIView,
-    RecentPostsAPIView
+    RecentPostsAPIView,
+    FullDashboardAPIView,
 )
 
 from .instagram_views import *
 from .linkedin_views import *
 from .youtube_views import *
 urlpatterns = [
+    path("dashboard/full/", FullDashboardAPIView.as_view()),
     path("", AnalyticsListView.as_view()),
     path("overview/", AnalyticsOverviewView.as_view()),
     path("engagement-chart/", EngagementChartView.as_view()),

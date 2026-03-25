@@ -10,7 +10,9 @@ from apps.industries.api.serializers import IndustrySerializer
 from apps.organizations.mixins import OrganizationContextMixin
 from apps.organizations.permissions import HasOrganization, IsOwner, IsAdminOrOwner
 from apps.audit.models import AuditLog
+from apps.organizations.api.serializers import OrganizationSerializer
 from apps.audit.services import log_event
+from rest_framework.parsers import FormParser, MultiPartParser
 from apps.audit.models import AuditLog
 
 
@@ -80,7 +82,9 @@ class ListMembersView(OrganizationContextMixin, APIView):
     permission_classes = [IsAuthenticated, HasOrganization, IsAdminOrOwner]
 
     def get(self, request):
-        OrganizationMember.objects.filter(organization=request.organization)
+        members = OrganizationMember.objects.filter(
+            organization=request.organization, is_deleted=False
+        )
 
         data = [{"id": m.id, "email": m.user.email, "role": m.role} for m in members]
 
@@ -108,7 +112,7 @@ class RemoveMemberView(APIView):
             if active_owner_count <= 1:
                 return Response(
                     {"error": "You are the owner. Assign a new owner before leaving."},
-                    status=400
+                    status=400,
                 )
 
         log_event(
@@ -205,8 +209,42 @@ class TransferOwnershipView(APIView):
             metadata={
                 "previous_owner": current_owner.user.email,
                 "new_owner": new_owner.user.email,
-                "action": "OWNER_TRANSFERRED"
+                "action": "OWNER_TRANSFERRED",
             },
         )
 
         return Response({"message": "Ownership transferred successfully"})
+
+
+class OrganizationSettingsView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request):
+        membership = OrganizationMember.objects.filter(user=request.user).first()
+
+        if not membership:
+            return Response({"error": "No organization"}, status=404)
+
+        org = membership.organization
+        serializer = OrganizationSerializer(org, context={"request": request})
+
+        return Response(serializer.data)
+
+    def patch(self, request):
+        membership = OrganizationMember.objects.filter(user=request.user).first()
+
+        if not membership:
+            return Response({"error": "No organization"}, status=404)
+
+        org = membership.organization
+
+        serializer = OrganizationSerializer(
+            org, data=request.data, partial=True, context={"request": request}
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        return Response(serializer.errors, status=400)

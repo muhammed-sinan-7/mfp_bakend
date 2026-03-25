@@ -22,7 +22,7 @@ def fetch(post_platform):
         "X-Restli-Protocol-Version": "2.0.0",
     }
 
-    res = requests.get(url, headers=headers)
+    res = requests.get(url, headers=headers,timeout=10)
 
     if res.status_code != 200:
         print("LinkedIn API ERROR:", res.text)

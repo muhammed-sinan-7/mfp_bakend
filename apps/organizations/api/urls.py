@@ -6,12 +6,14 @@ from .views import (
     DeleteOrganizationView,
     RemoveMemberView,
     TransferOwnershipView,
+    OrganizationSettingsView
 )
 
 urlpatterns = [
     
     path("create/", CreateOrganizationView.as_view(), name="create-organization"),
     path("delete/", DeleteOrganizationView.as_view(), name="delete-organization"),
+    path("settings/", OrganizationSettingsView.as_view(), name="settings-organization"),
 
     
     path("members/", ListMembersView.as_view(), name="list-members"),

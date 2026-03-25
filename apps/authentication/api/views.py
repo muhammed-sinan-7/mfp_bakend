@@ -1,248 +1,225 @@
-from django.shortcuts import render
+# apps/authentication/api/views.py
+
 from rest_framework.views import APIView
-from rest_framework import status
 from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+from apps.audit.services import log_event
+from apps.audit.models import AuditLog
+from apps.organizations.models import OrganizationMember
 from apps.authentication.api.serializers import (
-    OTPRequestSerializer,
-    OTPVerifySerializer,
     RegistrationSerializer,
     LoginSerializer,
+    OTPRequestSerializer,
+    OTPVerifySerializer,
 )
+
+from apps.authentication.services.auth_service import (
+    login_user,
+    verify_email,
+)
+
 from apps.authentication.services.otp_service import (
     create_otp,
     verify_otp,
-    generate_otp,
 )
-from django.utils import timezone
-from datetime import timedelta
-from rest_framework_simplejwt.views import TokenRefreshView
-from django.contrib.auth import authenticate
-from apps.audit.services import log_event
-from apps.audit.models import AuditLog
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
-from apps.organizations.models import OrganizationMember
-from rest_framework.permissions import IsAuthenticated
-from apps.organizations.models import OrganizationMember
+
+from apps.authentication.services.throttle_service import throttle_request
+
+from apps.authentication.exceptions import (
+    OTPCooldownException,
+    OTPInvalidException,
+    OTPLockedException,
+)
+
+from rest_framework.exceptions import Throttled
+
+User = get_user_model()
 
 
-from apps.organizations.permissions import HasOrganization
+# ---------------- REGISTER ---------------- #
 
 
-class OTPCreateBaseClass(APIView):
+class RegisterUserView(APIView):
+    def post(self, request):
+        serializer = RegistrationSerializer(data=request.data)
 
-    purpose = None
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
 
-    @swagger_auto_schema(request_body=OTPRequestSerializer)
+        serializer.save()
+
+        return Response(
+            {"message": "Registration successful. Verify your email."},
+            status=201,
+        )
+
+
+# ---------------- OTP REQUEST ---------------- #
+
+
+class RequestEmailOTPView(APIView):
     def post(self, request):
         serializer = OTPRequestSerializer(data=request.data)
+
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        if self.purpose is None:
-            return Response(
-                {"error": "OTP purpose is not configured."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return Response(serializer.errors, status=400)
+
         email = serializer.validated_data["email"]
 
         try:
-            create_otp(email=email, purpose=self.purpose)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            throttle_request(request, "otp_request", email)
 
-        return Response({"message": "OTP sent successfully"}, status=status.HTTP_200_OK)
+            user = User.objects.get(email=email)
+            create_otp(user=user, purpose="email_verification")
+
+        except User.DoesNotExist:
+            pass  # prevent enumeration
+
+        except OTPCooldownException:
+            return Response(
+                {"error": "Please wait before requesting another OTP"},
+                status=429,
+            )
+
+        except Throttled:
+            return Response(
+                {"error": "Too many requests"},
+                status=429,
+            )
+
+        return Response({"message": "OTP sent"}, status=200)
 
 
-class OTPVerifyBaseClass(APIView):
-    purpose = None
+class CustomTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
 
-    @swagger_auto_schema(request_body=OTPVerifySerializer)
+        # ⚠️ user not available here → log minimal info
+        if response.status_code == 200:
+            log_event(
+                actor=None,
+                organization=None,
+                action=AuditLog.ActionType.TOKEN_REFRESH,
+                request=request,
+            )
+
+        return response
+
+
+class VerifyEmailOTPView(APIView):
     def post(self, request):
         serializer = OTPVerifySerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if self.purpose is None:
-            return Response(
-                {"error": "Purpose is not configured"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
 
         email = serializer.validated_data["email"]
         otp = serializer.validated_data["otp"]
 
         try:
-            user = verify_otp(email, self.purpose, otp)
-        except Exception as e:
-            error_message = str(e)
+            throttle_request(request, "otp_verify", email)
 
-            if error_message == "LOCKED":
-                return Response(
-                    {
-                        "error": "Too many attempts",
-                        "attempts_left": 0,
-                        "locked": True,
-                    },
-                    status=400,
-                )
+            user = User.objects.get(email=email)
 
-            if error_message.startswith("INVALID:"):
-                remaining = int(error_message.split(":")[1])
-                return Response(
-                    {
-                        "error": "Invalid OTP",
-                        "attempts_left": remaining,
-                        "locked": False,
-                    },
-                    status=400,
-                )
+            verify_otp(user, "email_verification", otp)
+            verify_email(user)
 
-            return Response({"error": error_message}, status=400)
+            refresh = RefreshToken.for_user(user)
 
-        refresh = RefreshToken.for_user(user)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid OTP"}, status=400)
 
-        has_organization = OrganizationMember.objects.filter(user=user).exists()
-        membership = OrganizationMember.objects.filter(user=user).first()
-        organization = membership.organization if membership else None
+        except OTPLockedException:
+            return Response({"error": "Too many attempts", "locked": True}, status=400)
 
-        log_event(
-            actor=user,
-            organization=organization,
-            action=AuditLog.ActionType.OTP_VERIFIED,
-            request=request,
-        )
+        except OTPInvalidException as e:
+            remaining = str(e) if str(e) else None
+
+            return Response(
+                {
+                    "error": "Invalid OTP",
+                    "attempts_left": remaining,
+                },
+                status=400,
+            )
+
+        except Throttled:
+            return Response({"error": "Too many requests"}, status=429)
+
         return Response(
             {
-                "message": "OTP Verified Successfully",
-                "refresh": str(refresh),
+                "message": "Email verified",
                 "access": str(refresh.access_token),
-                "has_organization": has_organization,
+                "refresh": str(refresh),
             },
-            status=status.HTTP_200_OK,
-        )
-
-
-class RequestEmailVerificationOTPView(OTPCreateBaseClass):
-
-    purpose = "email_verification"
-
-
-class VerifyEmailOTPView(OTPVerifyBaseClass):
-    purpose = "email_verification"
-
-
-class RegisterUserView(APIView):
-    @swagger_auto_schema(request_body=RegistrationSerializer)
-    def post(self, request):
-        serializer = RegistrationSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            serializer.save()
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(
-            {"message": "Registration successful. Please verify your email."},
-            status=status.HTTP_201_CREATED,
+            status=200,
         )
 
 
 class LoginView(APIView):
-    @swagger_auto_schema(request_body=LoginSerializer)
     def post(self, request):
-        email = request.data.get("email")
-        password = request.data.get("password")
+        serializer = LoginSerializer(data=request.data)
 
-       
-        user_model = (
-            authenticate.__self__.get_user_model()
-            if hasattr(authenticate, "__self__")
-            else None
-        )
-        from django.contrib.auth import get_user_model
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
 
-        User = get_user_model()
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
 
         try:
-            existing_user = User.objects.get(email=email)
+            throttle_request(request, "login", email)
+
+            user = User.objects.get(email=email)
+            print("LOGIN EMAIL:", email)
+            print("USER FOUND:", user.id, user.email)
+            if not user.check_password(password):
+                return Response({"error": "Invalid credentials"}, status=401)
+
+            if not user.is_email_verified:
+                try:
+                    create_otp(user=user, purpose="email_verification")
+                except OTPCooldownException:
+                    pass
+
+                return Response(
+                    {
+                        "requires_verification": True,
+                        "email": user.email,
+                        "message": "Please verify your email",
+                    },
+                    status=200,
+                )
+
+            refresh = RefreshToken.for_user(user)
+
         except User.DoesNotExist:
-            existing_user = None
-
-        if existing_user:
-            existing_user.failed_login_attempts += 1
-
-            if existing_user.failed_login_attempts >= 5:
-                lock_minutes = min(
-                    60, 5 * (2 ** (existing_user.failed_login_attempts - 5))
-                )
-
-                existing_user.account_locked_until = timezone.now() + timedelta(
-                    minutes=lock_minutes
-                )
-
-                log_event(
-                    actor=existing_user,
-                    organization=None,
-                    action=AuditLog.ActionType.ACCOUNT_LOCKED,
-                    request=request,
-                    metadata={"lock_minutes": lock_minutes},
-                )
-
-            existing_user.save(
-                update_fields=["failed_login_attempts", "account_locked_until"]
-            )
-
-        user = authenticate(request, email=email, password=password)
-
-        if not user:
-
-            if existing_user:
-                existing_user.failed_login_attempts += 1
-
-                if existing_user.failed_login_attempts >= 5:
-                    existing_user.account_locked_until = timezone.now() + timedelta(
-                        minutes=15
-                    )
-
-                existing_user.save(
-                    update_fields=["failed_login_attempts", "account_locked_until"]
-                )
-
-            log_event(
-                actor=existing_user,
-                organization=None,
-                action=AuditLog.ActionType.LOGIN_FAILED,
-                request=request,
-                metadata={"email_attempted": email},
-            )
-
             return Response({"error": "Invalid credentials"}, status=401)
 
-        user.failed_login_attempts = 0
-        user.account_locked_until = None
-        user.save(update_fields=["failed_login_attempts", "account_locked_until"])
+        except Throttled:
+            return Response({"error": "Too many requests"}, status=429)
 
-        refresh = RefreshToken.for_user(user)
-
-        membership = user.organization_memberships.filter(is_deleted=False).first()
-        organization = membership.organization if membership else None
-
-        log_event(
-            actor=user,
-            organization=organization,
-            action=AuditLog.ActionType.LOGIN_SUCCESS,
-            request=request,
+        org = (
+            OrganizationMember.objects.select_related("organization")
+            .filter(user=user, is_deleted=False)
+            .first()
         )
+        memberships = OrganizationMember.objects.filter(user=user)
+        print("ALL MEMBERSHIPS:", list(memberships.values()))
+
+        active_memberships = memberships.filter(is_deleted=False)
+        print("ACTIVE MEMBERSHIPS:", list(active_memberships.values()))
 
         return Response(
             {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
-                "org_id": organization.id if organization else None,
-                "org_name": organization.name if organization else None,
-                "role": membership.role if membership else None,
+                "org_id": org.organization.id if org else None,
+                "org_name": org.organization.name if org else None,
+                "role": org.role if org else None,
             }
         )
 
@@ -252,65 +229,15 @@ class LogoutView(APIView):
 
     def post(self, request):
         try:
-            refresh_token = request.data["refresh"]
+            refresh_token = request.data.get("refresh")
+
+            if not refresh_token:
+                return Response({"error": "Refresh token required"}, status=400)
+
             token = RefreshToken(refresh_token)
             token.blacklist()
 
-            log_event(
-                actor=request.user,
-                organization=(
-                    request.organization if hasattr(request, "organization") else None
-                ),
-                action=AuditLog.ActionType.LOGOUT,
-                request=request,
-            )
-
-            return Response({"message": "Logged out successfully"})
+            return Response({"message": "Logged out successfully"}, status=200)
 
         except Exception:
             return Response({"error": "Invalid token"}, status=400)
-
-
-class TestDashboardView(APIView):
-    permission_classes = [IsAuthenticated, HasOrganization]
-
-    def get(self, request):
-        return Response({"message": "Dashboard acces granted"})
-
-
-class DashboardView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        membership = request.user.organization_memberships.filter(
-            is_deleted=False
-        ).first()
-
-        if not membership:
-            return Response(
-                {"error": "User does not belong to any organization."},
-                status=403,
-            )
-
-        return Response(
-            {
-                "message": "Welcome to dashboard",
-                "organization": membership.organization.name,
-                "role": membership.role,
-            }
-        )
-
-
-class CustomTokenRefreshView(TokenRefreshView):
-
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-
-        if response.status_code == 200:
-            log_event(
-                actor=request.user if request.user.is_authenticated else None,
-                action=AuditLog.ActionType.TOKEN_REFRESH,
-                request=request,
-            )
-
-        return response

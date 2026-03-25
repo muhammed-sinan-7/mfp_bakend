@@ -34,8 +34,8 @@ app.conf.beat_schedule = {
         "task": "apps.analytics.tasks.sync_post_analytics",
         "schedule": 1800,
     },
-    "fetch-industry-news":{
-        "task":"apps.news.tasks.ingest_news",
-        "schedule":crontab(minute=0,hour="*/2"),
+    "fetch-industry-news": {
+        "task": "apps.news.tasks.ingest_all_news",
+        "schedule": crontab(minute="*/30"),  # every 30 min
     },
 }
