@@ -1,17 +1,15 @@
-from django.db.models import Sum, Max
-from rest_framework.views import APIView
-from rest_framework.response import Response
-
-
-from ..models import PostPlatformAnalytics
-from django.db.models.functions import TruncDate
-from apps.organizations.mixins import OrganizationContextMixin
-
-from ..models import PostPlatformAnalyticsSnapshot
-from django.db.models import F
-from django.utils import timezone
-from apps.social_accounts.models import SocialProvider
 from datetime import timedelta
+
+from django.db.models import F, Max, Sum
+from django.db.models.functions import TruncDate
+from django.utils import timezone
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.organizations.mixins import OrganizationContextMixin
+from apps.social_accounts.models import SocialProvider
+
+from ..models import PostPlatformAnalytics, PostPlatformAnalyticsSnapshot
 
 start_date = timezone.now() - timedelta(days=30)
 
@@ -53,8 +51,7 @@ class InstagramGrowthChartView(OrganizationContextMixin, APIView):
         start_date = timezone.now() - timedelta(days=30)
 
         qs = (
-            PostPlatformAnalyticsSnapshot.objects
-            .filter(
+            PostPlatformAnalyticsSnapshot.objects.filter(
                 post_platform__post__organization_id=org.id,
                 post_platform__publishing_target__provider=SocialProvider.INSTAGRAM,
                 captured_at__gte=start_date,

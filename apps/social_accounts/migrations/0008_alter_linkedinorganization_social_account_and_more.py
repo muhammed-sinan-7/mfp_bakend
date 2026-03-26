@@ -7,28 +7,54 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_accounts', '0007_alter_publishingtarget_provider_and_more'),
+        ("social_accounts", "0007_alter_publishingtarget_provider_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='linkedinorganization',
-            name='social_account',
-            field=models.ForeignKey(limit_choices_to={'provider': 'linkedin'}, on_delete=django.db.models.deletion.CASCADE, related_name='linkedin_organizations', to='social_accounts.socialaccount'),
+            model_name="linkedinorganization",
+            name="social_account",
+            field=models.ForeignKey(
+                limit_choices_to={"provider": "linkedin"},
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="linkedin_organizations",
+                to="social_accounts.socialaccount",
+            ),
         ),
         migrations.AlterField(
-            model_name='metapage',
-            name='social_account',
-            field=models.ForeignKey(limit_choices_to={'provider': 'meta'}, on_delete=django.db.models.deletion.CASCADE, related_name='meta_pages', to='social_accounts.socialaccount'),
+            model_name="metapage",
+            name="social_account",
+            field=models.ForeignKey(
+                limit_choices_to={"provider": "meta"},
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="meta_pages",
+                to="social_accounts.socialaccount",
+            ),
         ),
         migrations.AlterField(
-            model_name='publishingtarget',
-            name='provider',
-            field=models.CharField(choices=[('meta', 'Meta'), ('instagram', 'Instagram'), ('linkedin', 'LinkedIn'), ('youtube', 'YouTube')], max_length=20),
+            model_name="publishingtarget",
+            name="provider",
+            field=models.CharField(
+                choices=[
+                    ("meta", "Meta"),
+                    ("instagram", "Instagram"),
+                    ("linkedin", "LinkedIn"),
+                    ("youtube", "YouTube"),
+                ],
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='socialaccount',
-            name='provider',
-            field=models.CharField(choices=[('meta', 'Meta'), ('instagram', 'Instagram'), ('linkedin', 'LinkedIn'), ('youtube', 'YouTube')], max_length=20),
+            model_name="socialaccount",
+            name="provider",
+            field=models.CharField(
+                choices=[
+                    ("meta", "Meta"),
+                    ("instagram", "Instagram"),
+                    ("linkedin", "LinkedIn"),
+                    ("youtube", "YouTube"),
+                ],
+                max_length=20,
+            ),
         ),
     ]

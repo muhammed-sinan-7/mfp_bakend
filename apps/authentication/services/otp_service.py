@@ -1,18 +1,19 @@
 # apps/authentication/services/otp_service.py
 
 import secrets
-import bcrypt
 from datetime import timedelta
-from django.utils import timezone
-from django.db import transaction
-from django.core.cache import cache
 
-from apps.authentication.models import OTPToken
+import bcrypt
+from django.core.cache import cache
+from django.db import transaction
+from django.utils import timezone
+
 from apps.authentication.exceptions import (
     OTPCooldownException,
     OTPInvalidException,
     OTPLockedException,
 )
+from apps.authentication.models import OTPToken
 
 from ..tasks import send_otp_email_task
 
@@ -23,15 +24,14 @@ def generate_otp():
 
 @transaction.atomic
 def create_otp(user, purpose):
-    
+
     cache_key = f"otp_cooldown:{user.id}:{purpose}"
 
     if cache.get(cache_key):
         raise OTPCooldownException()
 
-    cache.set(cache_key, True, timeout=60)  
+    cache.set(cache_key, True, timeout=60)
 
-   
     OTPToken.objects.filter(
         user=user,
         purpose=purpose,

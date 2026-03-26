@@ -1,9 +1,8 @@
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
-
 import uuid
+
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class BaseModel(models.Model):
@@ -13,8 +12,6 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True
-
-
 
 
 class ActiveManager(models.Manager):
@@ -30,20 +27,19 @@ class SoftDeleteModel(models.Model):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="deleted_%(class)s_set"
+        related_name="deleted_%(class)s_set",
     )
 
-    
-    objects = ActiveManager()       
-    all_objects = models.Manager()   
+    objects = ActiveManager()
+    all_objects = models.Manager()
 
     class Meta:
         abstract = True
 
     def delete(self, user=None, *args, **kwargs):
-        
+
         if self.is_deleted:
-            return  
+            return
 
         self.is_deleted = True
         self.deleted_at = timezone.now()
@@ -54,11 +50,11 @@ class SoftDeleteModel(models.Model):
         self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
 
     def hard_delete(self):
-       
+
         super().delete()
 
     def restore(self):
-        
+
         self.is_deleted = False
         self.deleted_at = None
         self.deleted_by = None

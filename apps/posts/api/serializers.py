@@ -1,22 +1,12 @@
-from rest_framework import serializers
-from apps.posts.models import Post, PostPlatform
-from django.utils import timezone
-from rest_framework import serializers
 from django.db import transaction
-from rest_framework import serializers
-from apps.posts.models import Post, PostPlatform, PostPlatformMedia
-from apps.posts.models import Post, PostPlatform, PostPlatformMedia, MediaType
-from apps.social_accounts.models import PublishingTarget
-from rest_framework import serializers
 from django.utils import timezone
-from apps.posts.models import PostPlatform
 from PIL import Image
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from apps.posts.models import MediaType, Post, PostPlatform, PostPlatformMedia
+from apps.social_accounts.models import PublishingTarget
 
-
-from PIL import Image
-from rest_framework.exceptions import ValidationError
 
 def validate_instagram_image(file):
     file.seek(0)
@@ -40,15 +30,15 @@ def validate_instagram_image(file):
 
     file.seek(0)
 
+
 class PostCreateSerializer(serializers.Serializer):
 
     caption = serializers.CharField(required=False, allow_blank=True)
     scheduled_time = serializers.DateTimeField()
     publishing_target_ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        allow_empty=False
+        child=serializers.UUIDField(), allow_empty=False
     )
-    
+
     def validate(self, attrs):
 
         request = self.context["request"]
@@ -57,7 +47,7 @@ class PostCreateSerializer(serializers.Serializer):
         targets = PublishingTarget.objects.filter(
             id__in=attrs["publishing_target_ids"],
             social_account__organization_id=org_id,
-            is_active=True
+            is_active=True,
         )
 
         if targets.count() != len(attrs["publishing_target_ids"]):
@@ -78,11 +68,8 @@ class PostCreateSerializer(serializers.Serializer):
         scheduled_time = validated_data["scheduled_time"]
         target_ids = validated_data["publishing_target_ids"]
 
-        post = Post.objects.create(
-            organization=organization,
-            created_by=request.user
-        )
-        
+        post = Post.objects.create(organization=organization, created_by=request.user)
+
         targets = PublishingTarget.objects.filter(id__in=target_ids)
 
         for target in targets:
@@ -91,7 +78,7 @@ class PostCreateSerializer(serializers.Serializer):
                 post=post,
                 publishing_target=target,
                 caption=caption,
-                scheduled_time=scheduled_time
+                scheduled_time=scheduled_time,
             )
 
             target_id_str = str(target.id)
@@ -116,7 +103,7 @@ class PostCreateSerializer(serializers.Serializer):
                         post_platform=platform,
                         file=file,
                         media_type=MediaType.IMAGE,
-                        order=order
+                        order=order,
                     )
 
                     order += 1
@@ -128,20 +115,16 @@ class PostCreateSerializer(serializers.Serializer):
                         post_platform=platform,
                         file=file,
                         media_type=MediaType.VIDEO,
-                        order=order
+                        order=order,
                     )
 
                     order += 1
 
         return post
-    
-    
 
 
 class PlatformSummarySerializer(serializers.ModelSerializer):
-    provider = serializers.CharField(
-        source="publishing_target.provider"
-    )
+    provider = serializers.CharField(source="publishing_target.provider")
 
     class Meta:
         model = PostPlatform
@@ -151,7 +134,7 @@ class PlatformSummarySerializer(serializers.ModelSerializer):
             "publish_status",
             "scheduled_time",
             "external_post_id",
-            "caption"
+            "caption",
         ]
 
 
@@ -177,7 +160,6 @@ class PostListSerializer(serializers.ModelSerializer):
         return None
 
 
-
 class MediaSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -192,9 +174,7 @@ class MediaSerializer(serializers.ModelSerializer):
 
 class PlatformDetailSerializer(serializers.ModelSerializer):
 
-    provider = serializers.CharField(
-        source="publishing_target.provider"
-    )
+    provider = serializers.CharField(source="publishing_target.provider")
 
     media = MediaSerializer(many=True)
 
@@ -224,8 +204,6 @@ class PostDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "platforms",
         ]
-        
-
 
 
 class PlatformUpdateSerializer(serializers.Serializer):
@@ -245,9 +223,6 @@ class PlatformUpdateSerializer(serializers.Serializer):
 
         if "scheduled_time" in attrs:
             if attrs["scheduled_time"] < timezone.now():
-                raise serializers.ValidationError(
-                    "Scheduled time must be in future."
-                )
+                raise serializers.ValidationError("Scheduled time must be in future.")
 
         return attrs
-    

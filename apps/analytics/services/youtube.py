@@ -1,9 +1,10 @@
+from datetime import date, timedelta
+
+from django.conf import settings
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from django.conf import settings
-from datetime import date, timedelta
-from .base import empty_metrics
 
+from .base import empty_metrics
 
 TRAFFIC_LABELS = {
     "YT_SEARCH": "YouTube Search",
@@ -32,11 +33,7 @@ def fetch(post_platform):
 
     metrics = empty_metrics()
 
-
-    res = youtube.videos().list(
-        part="statistics",
-        id=video_id
-    ).execute()
+    res = youtube.videos().list(part="statistics", id=video_id).execute()
 
     items = res.get("items")
 
@@ -49,7 +46,6 @@ def fetch(post_platform):
     metrics["likes"] = int(stats.get("likeCount", 0))
     metrics["comments"] = int(stats.get("commentCount", 0))
 
-  
     end = date.today()
     start = end - timedelta(days=30)
 
@@ -75,7 +71,6 @@ def fetch(post_platform):
         metrics["avg_view_duration"] = avg_duration
         metrics["watch_time"] = round(minutes_watched / 60, 2)
 
-
     traffic_report = (
         yt_analytics.reports()
         .query(
@@ -100,11 +95,13 @@ def fetch(post_platform):
 
         pct = round((views / total_views) * 100, 2) if total_views else 0
 
-        traffic_sources.append({
-            "label": TRAFFIC_LABELS.get(src, src),
-            "views": views,
-            "percentage": pct,
-        })
+        traffic_sources.append(
+            {
+                "label": TRAFFIC_LABELS.get(src, src),
+                "views": views,
+                "percentage": pct,
+            }
+        )
 
     metrics["traffic_sources"] = traffic_sources
 

@@ -3,7 +3,6 @@
 from django.core.cache import cache
 from rest_framework.exceptions import Throttled
 
-
 THROTTLE_CONFIG = {
     "otp_request": {"ip": 10, "email": 5, "window": 60},
     "login": {"ip": 10, "email": 5, "window": 60},
@@ -43,14 +42,12 @@ def throttle_request(request, scope, email=None):
 
     ip = get_client_ip(request)
 
-   
     check_limit(
         key=f"throttle:{scope}:ip:{ip}",
         limit=config["ip"],
         window=config["window"],
     )
 
-    
     if email:
         check_limit(
             key=f"throttle:{scope}:email:{email}",

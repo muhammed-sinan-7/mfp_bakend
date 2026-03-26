@@ -1,17 +1,23 @@
+import logging
+from datetime import timedelta
+
 from celery import shared_task
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
-from datetime import timedelta
-from .models import Post, PostPlatform, PostStatus, PublishStatus
+
+from .models import Post, PostPlatform, PublishStatus
 from .services import get_publisher
+
+logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 50
 
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=True)
 def publish_platform(self, platform_id):
-
     try:
+        # --- LOCK & INITIAL STATE ---
         with transaction.atomic():
             platform = (
                 PostPlatform.objects.select_for_update()
@@ -23,7 +29,9 @@ def publish_platform(self, platform_id):
                 .get(id=platform_id)
             )
 
-            if platform.external_post_id:
+            # Idempotency guard
+            if platform.publish_status == PublishStatus.SUCCESS:
+                logger.info(f"[SKIP] Already published: {platform_id}")
                 return
 
             platform.publish_status = PublishStatus.PROCESSING
@@ -32,19 +40,40 @@ def publish_platform(self, platform_id):
 
         account = platform.publishing_target.social_account
 
+        # --- TOKEN VALIDATION ---
         if account.is_token_expired():
-            raise Exception("Access token expired")
+            with transaction.atomic():
+                platform = PostPlatform.objects.select_for_update().get(id=platform_id)
+                platform.publish_status = PublishStatus.FAILED
+                platform.failure_reason = "Token expired"
+                platform.save(update_fields=["publish_status", "failure_reason"])
 
+            logger.warning(f"[TOKEN EXPIRED] {platform_id}")
+            return
+
+        # --- PUBLISH ---
         publisher = get_publisher(platform.publishing_target.provider)
         result = publisher.publish(platform)
 
+        # --- SUCCESS SAVE ---
         with transaction.atomic():
             platform = PostPlatform.objects.select_for_update().get(id=platform_id)
+
+            # Double-check idempotency
+            if platform.publish_status == PublishStatus.SUCCESS:
+                return
+
             platform.external_post_id = result.get("external_id")
             platform.publish_status = PublishStatus.SUCCESS
-            platform.save(update_fields=["external_post_id", "publish_status"])
+            platform.failure_reason = None
+            platform.save(
+                update_fields=["external_post_id", "publish_status", "failure_reason"]
+            )
+
+        logger.info(f"[SUCCESS] Platform published: {platform_id}")
 
     except Exception as e:
+        logger.error(f"[ERROR] Platform {platform_id}: {str(e)}")
 
         with transaction.atomic():
             platform = PostPlatform.objects.select_for_update().get(id=platform_id)
@@ -55,7 +84,7 @@ def publish_platform(self, platform_id):
             if platform.retry_count >= 3:
                 platform.publish_status = PublishStatus.FAILED
             else:
-                platform.publish_status = PublishStatus.PENDING
+                platform.publish_status = PublishStatus.PROCESSING
 
             platform.save(
                 update_fields=[
@@ -76,7 +105,11 @@ def dispatch_scheduled_platforms():
         platforms = (
             PostPlatform.objects.select_for_update(skip_locked=True)
             .filter(
-                publish_status=PublishStatus.PENDING,
+                Q(publish_status=PublishStatus.PENDING)
+                | Q(
+                    publish_status=PublishStatus.PROCESSING,
+                    last_attempt_at__lt=now - timedelta(minutes=10),
+                ),
                 scheduled_time__lte=now,
                 post__is_deleted=False,
             )
@@ -85,8 +118,9 @@ def dispatch_scheduled_platforms():
 
         platform_ids = list(platforms.values_list("id", flat=True))
 
+        # Claim via timestamp (lightweight lock)
         PostPlatform.objects.filter(id__in=platform_ids).update(
-            publish_status=PublishStatus.PROCESSING
+            last_attempt_at=timezone.now()
         )
 
     for pid in platform_ids:
@@ -95,13 +129,13 @@ def dispatch_scheduled_platforms():
 
 @shared_task
 def purge_recycle_bin():
-
     threshold = timezone.now() - timedelta(days=2)
 
     posts = Post.objects.filter(is_deleted=True, deleted_at__lt=threshold)
 
     count = posts.count()
-
     posts.delete()
+
+    logger.info(f"[CLEANUP] Deleted {count} posts")
 
     return f"{count} posts permanently deleted"

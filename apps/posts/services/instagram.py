@@ -1,12 +1,14 @@
-import requests
 import time
-from django.conf import settings
-from .base import BasePublisher
-from apps.social_accounts.models import MetaPage
 from urllib.parse import urljoin
+
+import requests
+from django.conf import settings
 from PIL import Image
 from rest_framework.exceptions import ValidationError
 
+from apps.social_accounts.models import MetaPage
+
+from .base import BasePublisher
 
 
 class InstagramPublisher(BasePublisher):
@@ -36,13 +38,12 @@ class InstagramPublisher(BasePublisher):
 
         create_url = f"{self.BASE_URL}/{ig_user_id}/media"
 
-        
         if media_items.count() == 1:
 
             media = media_items.first()
 
             file_url = urljoin(settings.BASE_URL, media.file.url)
-       
+
             payload = {
                 "caption": post_platform.caption or "",
                 "access_token": access_token,
@@ -55,14 +56,13 @@ class InstagramPublisher(BasePublisher):
                 payload["video_url"] = file_url
                 payload["media_type"] = "REELS"
 
-            create_res = requests.post(create_url, data=payload,timeout=10)
+            create_res = requests.post(create_url, data=payload, timeout=10)
 
             if create_res.status_code != 200:
                 raise Exception(create_res.text)
 
             container_id = create_res.json()["id"]
 
-        
         else:
 
             children = []
@@ -104,7 +104,6 @@ class InstagramPublisher(BasePublisher):
 
             container_id = carousel_res.json()["id"]
 
-       
         status_url = f"{self.BASE_URL}/{container_id}"
 
         for _ in range(10):
@@ -127,7 +126,6 @@ class InstagramPublisher(BasePublisher):
 
             time.sleep(5)
 
-     
         publish_url = f"{self.BASE_URL}/{ig_user_id}/media_publish"
 
         publish_payload = {

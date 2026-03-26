@@ -1,15 +1,19 @@
-from django.db.models import Sum, Max, OuterRef, Subquery
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from datetime import date, timedelta
+
+from django.conf import settings
+from django.db.models import Max, OuterRef, Subquery, Sum
 from django.db.models.functions import TruncDate
-from apps.social_accounts.models import SocialProvider
-from apps.organizations.mixins import OrganizationContextMixin
-from ..models import PostPlatformAnalytics, PostPlatformAnalyticsSnapshot
 from django.utils import timezone
-from datetime import timedelta,date
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from django.conf import settings
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.organizations.mixins import OrganizationContextMixin
+from apps.social_accounts.models import SocialProvider
+
+from ..models import PostPlatformAnalytics, PostPlatformAnalyticsSnapshot
+
 start_date = timezone.now() - timedelta(days=30)
 
 
@@ -107,7 +111,6 @@ class YouTubeVideoAnalyticsView(OrganizationContextMixin, APIView):
         return Response(data)
 
 
-
 class YouTubeTrafficSourcesView(OrganizationContextMixin, APIView):
 
     def get(self, request):
@@ -117,9 +120,7 @@ class YouTubeTrafficSourcesView(OrganizationContextMixin, APIView):
         if org is None:
             return Response({"error": "Organization context missing"}, status=400)
 
-        account = org.social_accounts.filter(
-            provider=SocialProvider.YOUTUBE
-        ).first()
+        account = org.social_accounts.filter(provider=SocialProvider.YOUTUBE).first()
 
         if not account:
             return Response([])
@@ -135,14 +136,18 @@ class YouTubeTrafficSourcesView(OrganizationContextMixin, APIView):
         end = date.today()
         start = end - timedelta(days=30)
 
-        report = yt_analytics.reports().query(
-            ids="channel==MINE",
-            startDate=start.isoformat(),
-            endDate=end.isoformat(),
-            metrics="views",
-            dimensions="insightTrafficSourceType",
-            sort="-views",
-        ).execute()
+        report = (
+            yt_analytics.reports()
+            .query(
+                ids="channel==MINE",
+                startDate=start.isoformat(),
+                endDate=end.isoformat(),
+                metrics="views",
+                dimensions="insightTrafficSourceType",
+                sort="-views",
+            )
+            .execute()
+        )
 
         rows = report.get("rows", [])
 
@@ -161,10 +166,8 @@ class YouTubeTrafficSourcesView(OrganizationContextMixin, APIView):
 
             pct = round((views / total) * 100, 2) if total else 0
 
-            data.append({
-                "label": TRAFFIC_LABELS.get(src, src),
-                "value": pct,
-                "views": views
-            })
+            data.append(
+                {"label": TRAFFIC_LABELS.get(src, src), "value": pct, "views": views}
+            )
 
         return Response(data)

@@ -1,6 +1,7 @@
 from apps.social_accounts.models import SocialProvider
-from .linkedin import LinkedInPublisher
+
 from .instagram import InstagramPublisher
+from .linkedin import LinkedInPublisher
 from .youtube import YouTubePublisher
 
 

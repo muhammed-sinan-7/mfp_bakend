@@ -25,6 +25,7 @@ class CaptionRewriteSerializer(serializers.Serializer):
 
     mode = serializers.ChoiceField(choices=["improve", "professional", "engaging"])
 
+
 class ContentIdeasSerializer(serializers.Serializer):
     industry = serializers.CharField(max_length=100)
     platform = serializers.ChoiceField(

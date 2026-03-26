@@ -6,13 +6,16 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('analytics', '0004_postplatformanalyticssnapshot_analytics_p_post_pl_9958b9_idx'),
+        (
+            "analytics",
+            "0004_postplatformanalyticssnapshot_analytics_p_post_pl_9958b9_idx",
+        ),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='postplatformanalytics',
-            name='traffic_sources',
+            model_name="postplatformanalytics",
+            name="traffic_sources",
             field=models.JSONField(default=list),
         ),
     ]

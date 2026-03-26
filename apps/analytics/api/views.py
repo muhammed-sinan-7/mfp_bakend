@@ -1,18 +1,16 @@
-from django.db.models import Sum, Max, OuterRef, Subquery
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from apps.posts.models import Post
-from ..models import PostPlatformAnalytics
-from django.db.models.functions import TruncDate
-from apps.organizations.mixins import OrganizationContextMixin
-from apps.posts.models import PostPlatform
-from .serializers import PostAnalyticsSerializer
-from ..models import PostPlatformAnalyticsSnapshot
-from django.db.models import F
-from django.db.models.functions import TruncHour, TruncMinute
+from django.db.models import F, Max, OuterRef, Subquery, Sum
+from django.db.models.functions import TruncDate, TruncHour, TruncMinute
 from django.utils.timezone import now, timedelta
-from apps.social_accounts.models import PublishingTarget
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from apps.news.selectors import get_industry_news
+from apps.organizations.mixins import OrganizationContextMixin
+from apps.posts.models import Post, PostPlatform
+from apps.social_accounts.models import PublishingTarget
+
+from ..models import PostPlatformAnalytics, PostPlatformAnalyticsSnapshot
+from .serializers import PostAnalyticsSerializer
 
 
 class AnalyticsListView(APIView):

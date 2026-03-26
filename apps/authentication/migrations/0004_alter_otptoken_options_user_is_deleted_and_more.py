@@ -6,45 +6,51 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('authentication', '0003_user_account_locked_until_user_failed_login_attempts'),
+        ("authentication", "0003_user_account_locked_until_user_failed_login_attempts"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='otptoken',
-            options={'ordering': ['-created_at']},
+            name="otptoken",
+            options={"ordering": ["-created_at"]},
         ),
         migrations.AddField(
-            model_name='user',
-            name='is_deleted',
+            model_name="user",
+            name="is_deleted",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='user',
-            name='last_login_ip',
+            model_name="user",
+            name="last_login_ip",
             field=models.GenericIPAddressField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='user',
-            name='last_login_user_agent',
+            model_name="user",
+            name="last_login_user_agent",
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='user',
-            name='updated_at',
+            model_name="user",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='email',
+            model_name="user",
+            name="email",
             field=models.EmailField(db_index=True, max_length=254, unique=True),
         ),
         migrations.AddIndex(
-            model_name='otptoken',
-            index=models.Index(fields=['created_at'], name='authenticat_created_253499_idx'),
+            model_name="otptoken",
+            index=models.Index(
+                fields=["created_at"], name="authenticat_created_253499_idx"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='otptoken',
-            constraint=models.UniqueConstraint(condition=models.Q(('is_used', False)), fields=('user', 'purpose'), name='unique_active_otp_per_user'),
+            model_name="otptoken",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("is_used", False)),
+                fields=("user", "purpose"),
+                name="unique_active_otp_per_user",
+            ),
         ),
     ]

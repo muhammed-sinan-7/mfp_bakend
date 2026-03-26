@@ -1,34 +1,30 @@
-import requests
 import base64
 import hashlib
 import hmac
 import json
 import time
+from datetime import timedelta
 from urllib.parse import urlencode
 
+import requests
 from django.conf import settings
 from django.shortcuts import redirect
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from ..services.meta import MetaOAuthService
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from apps.organizations.mixins import OrganizationContextMixin
-from apps.social_accounts.services.linkedin import LinkedInOAuthService
-from apps.social_accounts.models import SocialAccount, SocialProvider, PublishingTarget
-from apps.social_accounts.services.meta_sync_service import MetaSyncService
-from ..tasks import sync_meta_pages_task
-from apps.social_accounts.services.linkedin import LinkedInService
-from .serializers import SocialAccountSerializer
-from apps.social_accounts.services.youtube import YouTubeOAuthService
-from datetime import timedelta
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.generics import ListAPIView
-from apps.social_accounts.models import PublishingTarget
-from .serializers import PublishingTargetSerializer
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from apps.organizations.mixins import OrganizationContextMixin
+from apps.social_accounts.models import PublishingTarget, SocialAccount, SocialProvider
+from apps.social_accounts.services.linkedin import LinkedInOAuthService, LinkedInService
+from apps.social_accounts.services.meta_sync_service import MetaSyncService
+from apps.social_accounts.services.youtube import YouTubeOAuthService
+
+from ..services.meta import MetaOAuthService
+from ..tasks import sync_meta_pages_task
+from .serializers import PublishingTargetSerializer, SocialAccountSerializer
 
 
 class MetaConnectView(OrganizationContextMixin, APIView):
@@ -356,7 +352,6 @@ class SocialAccountDisconnectView(OrganizationContextMixin, APIView):
         account.is_active = False
         account.save(update_fields=["is_active"])
 
-       
         account.publishing_targets.update(is_active=False)
 
         return Response({"message": "Account disconnected"})

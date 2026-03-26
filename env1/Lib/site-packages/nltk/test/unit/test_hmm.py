@@ -1,5 +1,4 @@
 import pytest
-
 from nltk.tag import hmm
 
 

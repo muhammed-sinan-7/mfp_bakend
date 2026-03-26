@@ -6,13 +6,22 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_accounts', '0008_alter_linkedinorganization_social_account_and_more'),
+        ("social_accounts", "0008_alter_linkedinorganization_social_account_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='publishingtarget',
-            name='provider',
-            field=models.CharField(choices=[('meta', 'Meta'), ('instagram', 'Instagram'), ('linkedin', 'LinkedIn'), ('youtube', 'YouTube')], db_index=True, max_length=20),
+            model_name="publishingtarget",
+            name="provider",
+            field=models.CharField(
+                choices=[
+                    ("meta", "Meta"),
+                    ("instagram", "Instagram"),
+                    ("linkedin", "LinkedIn"),
+                    ("youtube", "YouTube"),
+                ],
+                db_index=True,
+                max_length=20,
+            ),
         ),
     ]

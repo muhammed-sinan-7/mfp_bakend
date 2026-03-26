@@ -1,7 +1,9 @@
 # apps/analytics/services/linkedin.py
 
-import requests
 from urllib.parse import quote
+
+import requests
+
 from .base import empty_metrics
 
 
@@ -22,7 +24,7 @@ def fetch(post_platform):
         "X-Restli-Protocol-Version": "2.0.0",
     }
 
-    res = requests.get(url, headers=headers,timeout=10)
+    res = requests.get(url, headers=headers, timeout=10)
 
     if res.status_code != 200:
         print("LinkedIn API ERROR:", res.text)

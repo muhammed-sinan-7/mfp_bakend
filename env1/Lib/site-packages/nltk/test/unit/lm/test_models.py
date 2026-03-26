@@ -9,7 +9,6 @@ from math import fsum as sum
 from operator import itemgetter
 
 import pytest
-
 from nltk.lm import (
     MLE,
     AbsoluteDiscountingInterpolated,

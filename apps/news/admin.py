@@ -1,6 +1,7 @@
 from django.contrib import admin
-from .models import *
+
 # Register your models here.
+from .models import *
 from .models import NewsArticle
 
 
@@ -12,7 +13,10 @@ class NewsArticleAdmin(admin.ModelAdmin):
     ordering = ("-published_at",)
 
     readonly_fields = ("created_at",)
+
+
 # admin.site.register(NewsSource)
+
 
 @admin.register(NewsSource)
 class NewsSourceAdmin(admin.ModelAdmin):
@@ -22,10 +26,6 @@ class NewsSourceAdmin(admin.ModelAdmin):
     ordering = ("industry", "name")
 
     fieldsets = (
-        ("Basic Info", {
-            "fields": ("name", "rss_url", "industry")
-        }),
-        ("Status", {
-            "fields": ("is_active",)
-        }),
+        ("Basic Info", {"fields": ("name", "rss_url", "industry")}),
+        ("Status", {"fields": ("is_active",)}),
     )

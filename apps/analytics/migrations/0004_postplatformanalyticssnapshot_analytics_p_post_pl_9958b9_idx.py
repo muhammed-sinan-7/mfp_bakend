@@ -6,13 +6,19 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('analytics', '0003_remove_postplatformanalyticssnapshot_analytics_p_post_pl_8deaf5_idx_and_more'),
-        ('posts', '0002_post_deleted_at_post_is_deleted'),
+        (
+            "analytics",
+            "0003_remove_postplatformanalyticssnapshot_analytics_p_post_pl_8deaf5_idx_and_more",
+        ),
+        ("posts", "0002_post_deleted_at_post_is_deleted"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='postplatformanalyticssnapshot',
-            index=models.Index(fields=['post_platform', 'captured_at', 'views'], name='analytics_p_post_pl_9958b9_idx'),
+            model_name="postplatformanalyticssnapshot",
+            index=models.Index(
+                fields=["post_platform", "captured_at", "views"],
+                name="analytics_p_post_pl_9958b9_idx",
+            ),
         ),
     ]

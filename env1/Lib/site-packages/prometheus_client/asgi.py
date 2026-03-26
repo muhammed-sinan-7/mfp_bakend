@@ -2,7 +2,7 @@ from typing import Callable
 from urllib.parse import parse_qs
 
 from .exposition import _bake_output
-from .registry import Collector, REGISTRY
+from .registry import REGISTRY, Collector
 
 
 def make_asgi_app(registry: Collector = REGISTRY, disable_compression: bool = False) -> Callable:

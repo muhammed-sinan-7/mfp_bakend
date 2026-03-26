@@ -86,15 +86,10 @@ class PostService:
 
     def generate_post(self, history, platform, tone, audience):
 
-        messages = [
-            {"role": "system", "content": system_prompt}
-        ]
+        messages = [{"role": "system", "content": system_prompt}]
 
         for msg in history:
-            messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
+            messages.append({"role": msg["role"], "content": msg["content"]})
 
         result = self.ai.chat_json(messages) or {}
 

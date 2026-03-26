@@ -1,5 +1,4 @@
 import pytest
-
 from nltk import config_megam
 from nltk.classify.rte_classify import RTEFeatureExtractor, rte_classifier, rte_features
 from nltk.corpus import rte as rte_corpus

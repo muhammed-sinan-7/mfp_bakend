@@ -6,12 +6,14 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('authentication', '0004_alter_otptoken_options_user_is_deleted_and_more'),
+        ("authentication", "0004_alter_otptoken_options_user_is_deleted_and_more"),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='otptoken',
-            index=models.Index(fields=['expires_at'], name='authenticat_expires_8a3add_idx'),
+            model_name="otptoken",
+            index=models.Index(
+                fields=["expires_at"], name="authenticat_expires_8a3add_idx"
+            ),
         ),
     ]

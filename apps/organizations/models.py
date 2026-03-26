@@ -1,15 +1,15 @@
 import uuid
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
 from datetime import timedelta
-from django.db import models
+
 from django.conf import settings
-from common.models import SoftDeleteModel,BaseModel
+from django.db import models
+from django.utils import timezone
+
 from apps.industries.models import Industry
+from common.models import BaseModel, SoftDeleteModel
 
 
-class Organization(SoftDeleteModel,BaseModel):
+class Organization(SoftDeleteModel, BaseModel):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
     logo = models.ImageField(upload_to="organization_logos/", null=True, blank=True)
@@ -21,7 +21,7 @@ class Organization(SoftDeleteModel,BaseModel):
         return self.name
 
 
-class OrganizationMember(SoftDeleteModel,BaseModel):
+class OrganizationMember(SoftDeleteModel, BaseModel):
 
     ROLE_CHOICES = (
         ("OWNER", "Owner"),
@@ -52,7 +52,9 @@ class OrganizationMember(SoftDeleteModel,BaseModel):
             ).count()
 
             if active_owner_count <= 1:
-                raise ValueError("You are the owner. Assign a new owner before leaving.")
+                raise ValueError(
+                    "You are the owner. Assign a new owner before leaving."
+                )
 
         if self.is_deleted:
             return
@@ -67,9 +69,7 @@ class OrganizationMember(SoftDeleteModel,BaseModel):
 
     class Meta:
         constraints = [
-          
             models.UniqueConstraint(fields=["user"], name="unique_user_membership"),
-            
             models.UniqueConstraint(
                 fields=["user"],
                 condition=models.Q(is_deleted=False),

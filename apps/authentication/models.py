@@ -1,14 +1,16 @@
 # apps/authentication/models.py
 
-from django.db import models
 import uuid
+
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
     PermissionsMixin,
 )
+from django.db import models
+from django.db.models import Q
 from django.utils import timezone
-from django.db.models import Q 
+
 
 class UserManager(BaseUserManager):
 
@@ -19,7 +21,7 @@ class UserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
 
-        user.set_password(password)  
+        user.set_password(password)
         user.save(using=self._db)
         return user
 
@@ -34,7 +36,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    email = models.EmailField(unique=True, db_index=True) 
+    email = models.EmailField(unique=True, db_index=True)
 
     phone_number = models.CharField(max_length=15, unique=True, null=True, blank=True)
 

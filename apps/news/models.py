@@ -1,4 +1,5 @@
 from django.db import models
+
 from apps.industries.models import Industry
 
 # Create your models here.

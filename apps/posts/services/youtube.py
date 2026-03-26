@@ -1,9 +1,10 @@
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
 from django.conf import settings
 from django.utils import timezone
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
 from .base import BasePublisher
 
 
@@ -31,7 +32,9 @@ class YouTubePublisher(BasePublisher):
             credentials.refresh(Request())
 
             social_account.access_token = credentials.token
-            social_account.token_expires_at = timezone.now() + timezone.timedelta(seconds=3600)
+            social_account.token_expires_at = timezone.now() + timezone.timedelta(
+                seconds=3600
+            )
             social_account.save(update_fields=["access_token", "token_expires_at"])
 
         youtube = build("youtube", "v3", credentials=credentials)
@@ -45,19 +48,11 @@ class YouTubePublisher(BasePublisher):
                     "title": caption[:90],
                     "description": caption,
                 },
-                "status": {
-                    "privacyStatus": "public"
-                }
+                "status": {"privacyStatus": "public"},
             },
-            media_body=MediaFileUpload(
-                media.file.path,
-                chunksize=-1,
-                resumable=True
-            )
+            media_body=MediaFileUpload(media.file.path, chunksize=-1, resumable=True),
         )
 
         response = request.execute()
 
-        return {
-            "external_id": response.get("id")
-        }
+        return {"external_id": response.get("id")}

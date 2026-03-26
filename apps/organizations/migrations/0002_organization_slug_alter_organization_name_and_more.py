@@ -8,29 +8,35 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('organizations', '0001_initial'),
+        ("organizations", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='organization',
-            name='slug',
+            model_name="organization",
+            name="slug",
             field=models.SlugField(default=1, unique=True),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='organization',
-            name='name',
+            model_name="organization",
+            name="name",
             field=models.CharField(max_length=255),
         ),
         migrations.AlterField(
-            model_name='organizationmember',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='organization_memberships', to=settings.AUTH_USER_MODEL),
+            model_name="organizationmember",
+            name="user",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="organization_memberships",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddConstraint(
-            model_name='organizationmember',
-            constraint=models.UniqueConstraint(fields=('user',), name='unique_user_membership'),
+            model_name="organizationmember",
+            constraint=models.UniqueConstraint(
+                fields=("user",), name="unique_user_membership"
+            ),
         ),
     ]

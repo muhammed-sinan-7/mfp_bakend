@@ -1,17 +1,18 @@
-import requests
-import urllib.parse
 import secrets
+import urllib.parse
+from datetime import timedelta
+
+import requests
 from django.conf import settings
 from django.core.cache import cache
-from django.utils import timezone
-from datetime import timedelta
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
 from django.shortcuts import redirect
+from django.utils import timezone
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.organizations.mixins import OrganizationContextMixin
-from apps.social_accounts.models import SocialAccount, PublishingTarget, SocialProvider
+from apps.social_accounts.models import PublishingTarget, SocialAccount, SocialProvider
 
 
 class YouTubeOAuthService:
@@ -20,18 +21,17 @@ class YouTubeOAuthService:
     TOKEN_URL = "https://oauth2.googleapis.com/token"
     YT_API_BASE = "https://www.googleapis.com/youtube/v3"
 
-    STATE_TTL = 600  
+    STATE_TTL = 600
 
     SCOPES = [
         "https://www.googleapis.com/auth/youtube.upload",
         "https://www.googleapis.com/auth/youtube.readonly",
-        "https://www.googleapis.com/auth/yt-analytics.readonly"
+        "https://www.googleapis.com/auth/yt-analytics.readonly",
     ]
 
-    
     @staticmethod
     def generate_authorization_url(organization_id):
- 
+
         state = secrets.token_urlsafe(32)
 
         cache.set(
@@ -52,7 +52,6 @@ class YouTubeOAuthService:
 
         return YouTubeOAuthService.AUTH_URL + "?" + urllib.parse.urlencode(params)
 
-  
     @staticmethod
     def exchange_code(code):
 
@@ -84,8 +83,8 @@ class YouTubeOAuthService:
                 "refresh_token": refresh_token,
                 "grant_type": "refresh_token",
             },
-        timeout=10,
-    )
+            timeout=10,
+        )
 
         if response.status_code != 200:
             raise Exception(f"YouTube token refresh failed: {response.text}")
@@ -101,9 +100,7 @@ class YouTubeOAuthService:
                 "part": "snippet",
                 "mine": "true",
             },
-            headers={
-                "Authorization": f"Bearer {access_token}"
-            },
+            headers={"Authorization": f"Bearer {access_token}"},
             timeout=10,
         )
 
@@ -112,7 +109,6 @@ class YouTubeOAuthService:
 
         return response.json()
 
-  
     @staticmethod
     def validate_state(state):
 
@@ -124,5 +120,3 @@ class YouTubeOAuthService:
         cache.delete(f"youtube_oauth_state:{state}")
 
         return org_id
-    
-

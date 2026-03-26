@@ -1,10 +1,12 @@
 # mfp_backend/apps/social/services/meta_token_service.py
 
-import requests
 from datetime import timedelta
-from django.utils import timezone
+
+import requests
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
+
 from apps.social_accounts.models import SocialAccount
 
 
@@ -43,41 +45,34 @@ class MetaTokenService:
         new_token = data.get("access_token")
         expires_in = data.get("expires_in")
 
-       
         if not new_token:
             MetaTokenService._handle_failure(account)
             return
 
-        
         account.access_token = new_token
 
         if expires_in:
-            account.token_expires_at = timezone.now() + timedelta(seconds=int(expires_in))
+            account.token_expires_at = timezone.now() + timedelta(
+                seconds=int(expires_in)
+            )
         else:
-            
+
             account.token_expires_at = timezone.now() + timedelta(days=60)
 
         account.refresh_failed_count = 0
 
-        account.save(update_fields=[
-            "access_token",
-            "token_expires_at",
-            "refresh_failed_count"
-        ])
+        account.save(
+            update_fields=["access_token", "token_expires_at", "refresh_failed_count"]
+        )
 
         MetaTokenService._refresh_page_tokens(account, new_token)
-
 
     @staticmethod
     def _refresh_page_tokens(account, user_token: str):
 
         url = f"{MetaTokenService.GRAPH_BASE}/me/accounts"
 
-        response = requests.get(
-            url,
-            params={"access_token": user_token},
-            timeout=10
-        )
+        response = requests.get(url, params={"access_token": user_token}, timeout=10)
 
         if response.status_code != 200:
             return
@@ -90,7 +85,6 @@ class MetaTokenService:
         account.metadata = metadata
         account.save(update_fields=["metadata"])
 
-
     @staticmethod
     def _handle_failure(account):
 
@@ -99,7 +93,4 @@ class MetaTokenService:
         if account.refresh_failed_count >= 3:
             account.is_active = False
 
-        account.save(update_fields=[
-            "refresh_failed_count",
-            "is_active"
-        ])
+        account.save(update_fields=["refresh_failed_count", "is_active"])

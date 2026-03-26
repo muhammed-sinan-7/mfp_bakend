@@ -1,13 +1,16 @@
 from celery import shared_task
-from django.core.mail import send_mail
 from django.conf import settings
+from django.core.mail import send_mail
+
 
 @shared_task
 def send_otp_email_task(email, otp):
-    
+
     subject = "Verify your email - MFP"
-    message = f"Hello,\n\nYour OTP is: {otp}\n\nThis expires in 5 minutes.\n\n- MFP Team"
-    
+    message = (
+        f"Hello,\n\nYour OTP is: {otp}\n\nThis expires in 5 minutes.\n\n- MFP Team"
+    )
+
     send_mail(
         subject=subject,
         message=message,

@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class PostsConfig(AppConfig):
-    name = 'apps.posts'
+    name = "apps.posts"

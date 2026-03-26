@@ -6,18 +6,34 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_accounts', '0006_alter_publishingtarget_unique_together'),
+        ("social_accounts", "0006_alter_publishingtarget_unique_together"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='publishingtarget',
-            name='provider',
-            field=models.CharField(choices=[('META', 'Meta'), ('INSTAGRAM', 'Instagram'), ('LINKEDIN', 'LinkedIn'), ('YOUTUBE', 'YouTube')], max_length=20),
+            model_name="publishingtarget",
+            name="provider",
+            field=models.CharField(
+                choices=[
+                    ("META", "Meta"),
+                    ("INSTAGRAM", "Instagram"),
+                    ("LINKEDIN", "LinkedIn"),
+                    ("YOUTUBE", "YouTube"),
+                ],
+                max_length=20,
+            ),
         ),
         migrations.AlterField(
-            model_name='socialaccount',
-            name='provider',
-            field=models.CharField(choices=[('META', 'Meta'), ('INSTAGRAM', 'Instagram'), ('LINKEDIN', 'LinkedIn'), ('YOUTUBE', 'YouTube')], max_length=20),
+            model_name="socialaccount",
+            name="provider",
+            field=models.CharField(
+                choices=[
+                    ("META", "Meta"),
+                    ("INSTAGRAM", "Instagram"),
+                    ("LINKEDIN", "LinkedIn"),
+                    ("YOUTUBE", "YouTube"),
+                ],
+                max_length=20,
+            ),
         ),
     ]

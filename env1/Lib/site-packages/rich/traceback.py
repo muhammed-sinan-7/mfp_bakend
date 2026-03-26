@@ -33,8 +33,8 @@ from .console import (
     Console,
     ConsoleOptions,
     ConsoleRenderable,
-    OverflowMethod,
     Group,
+    OverflowMethod,
     RenderResult,
     group,
 )

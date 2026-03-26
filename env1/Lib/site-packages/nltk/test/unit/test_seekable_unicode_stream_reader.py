@@ -2,7 +2,6 @@ import os
 from io import BytesIO
 
 import pytest
-
 from nltk.corpus.reader import SeekableUnicodeStreamReader
 
 

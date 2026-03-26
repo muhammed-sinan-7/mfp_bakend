@@ -6,12 +6,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_accounts', '0005_linkedinorganization'),
+        ("social_accounts", "0005_linkedinorganization"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='publishingtarget',
-            unique_together={('social_account', 'provider', 'resource_id')},
+            name="publishingtarget",
+            unique_together={("social_account", "provider", "resource_id")},
         ),
     ]

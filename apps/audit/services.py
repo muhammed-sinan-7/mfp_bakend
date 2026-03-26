@@ -16,7 +16,7 @@ def log_event(
     request=None,
     target_model=None,
     target_id=None,
-    metadata=None
+    metadata=None,
 ):
     ip = None
     agent = None
@@ -33,5 +33,5 @@ def log_event(
         target_id=target_id,
         ip_address=ip,
         user_agent=agent,
-        metadata=metadata or {}
+        metadata=metadata or {},
     )

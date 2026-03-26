@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('social_accounts', '0001_initial'),
+        ("social_accounts", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='socialaccount',
-            name='last_refreshed_at',
+            model_name="socialaccount",
+            name="last_refreshed_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='socialaccount',
-            name='refresh_failed_count',
+            model_name="socialaccount",
+            name="refresh_failed_count",
             field=models.IntegerField(default=0),
         ),
     ]

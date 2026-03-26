@@ -1,9 +1,11 @@
 # apps/authentication/services/auth_service.py
 
-from django.contrib.auth import get_user_model, authenticate
-from django.utils import timezone
 from datetime import timedelta
+
+from django.contrib.auth import authenticate, get_user_model
+from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from apps.authentication.services.otp_service import create_otp
 
 User = get_user_model()

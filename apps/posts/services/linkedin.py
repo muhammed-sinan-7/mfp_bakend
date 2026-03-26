@@ -1,8 +1,9 @@
 import requests
 from django.conf import settings
 from django.utils import timezone
-from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+
 from .base import BasePublisher
 
 
@@ -34,10 +35,14 @@ class LinkedInPublisher(BasePublisher):
         video = post_platform.media.filter(media_type="VIDEO").first()
 
         if video:
-            media_urn = self._upload_video(video.file.path, access_token, social_account.external_id)
+            media_urn = self._upload_video(
+                video.file.path, access_token, social_account.external_id
+            )
             share_media_category = "VIDEO"
         elif image:
-            media_urn = self._upload_image(image.file.path, access_token, social_account.external_id)
+            media_urn = self._upload_image(
+                image.file.path, access_token, social_account.external_id
+            )
             share_media_category = "IMAGE"
         else:
             media_urn = None
@@ -48,15 +53,11 @@ class LinkedInPublisher(BasePublisher):
             "lifecycleState": "PUBLISHED",
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {
-                        "text": caption
-                    },
+                    "shareCommentary": {"text": caption},
                     "shareMediaCategory": share_media_category,
                 }
             },
-            "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-            }
+            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
         }
 
         if media_urn:
@@ -69,16 +70,14 @@ class LinkedInPublisher(BasePublisher):
             ]
 
         response = requests.post(
-            f"{self.BASE_URL}/ugcPosts",
-            json=payload,
-            headers=headers
+            f"{self.BASE_URL}/ugcPosts", json=payload, headers=headers
         )
 
         if response.status_code not in [200, 201]:
             raise Exception(f"LinkedIn publish failed: {response.text}")
 
         return {"external_id": response.json().get("id")}
-    
+
     def _upload_image(self, file_path, access_token, person_id):
 
         headers = {
@@ -94,16 +93,16 @@ class LinkedInPublisher(BasePublisher):
                 "serviceRelationships": [
                     {
                         "relationshipType": "OWNER",
-                        "identifier": "urn:li:userGeneratedContent"
+                        "identifier": "urn:li:userGeneratedContent",
                     }
-                ]
+                ],
             }
         }
 
         register_res = requests.post(
             f"{self.BASE_URL}/assets?action=registerUpload",
             json=register_payload,
-            headers=headers
+            headers=headers,
         )
 
         if register_res.status_code != 200:
@@ -111,7 +110,9 @@ class LinkedInPublisher(BasePublisher):
 
         data = register_res.json()
 
-        upload_url = data["value"]["uploadMechanism"]["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]["uploadUrl"]
+        upload_url = data["value"]["uploadMechanism"][
+            "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"
+        ]["uploadUrl"]
         asset = data["value"]["asset"]
 
         with open(file_path, "rb") as f:
@@ -121,7 +122,7 @@ class LinkedInPublisher(BasePublisher):
             raise Exception("LinkedIn image upload failed")
 
         return asset
-    
+
     def _upload_video(self, file_path, access_token, person_id):
 
         headers = {
@@ -137,16 +138,16 @@ class LinkedInPublisher(BasePublisher):
                 "serviceRelationships": [
                     {
                         "relationshipType": "OWNER",
-                        "identifier": "urn:li:userGeneratedContent"
+                        "identifier": "urn:li:userGeneratedContent",
                     }
-                ]
+                ],
             }
         }
 
         register_res = requests.post(
             f"{self.BASE_URL}/assets?action=registerUpload",
             json=register_payload,
-            headers=headers
+            headers=headers,
         )
 
         if register_res.status_code != 200:
@@ -154,7 +155,9 @@ class LinkedInPublisher(BasePublisher):
 
         data = register_res.json()
 
-        upload_url = data["value"]["uploadMechanism"]["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]["uploadUrl"]
+        upload_url = data["value"]["uploadMechanism"][
+            "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"
+        ]["uploadUrl"]
         asset = data["value"]["asset"]
 
         with open(file_path, "rb") as f:

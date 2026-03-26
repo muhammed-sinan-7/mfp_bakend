@@ -1,9 +1,16 @@
 from django.contrib import admin
-from .models import OTPToken,User
-from apps.organizations.models import Organization,OrganizationInvite,OrganizationMember
+
 from apps.industries.models import Industry
-from apps.posts.models import Post,PostPlatformMedia,PostPlatform,PostStatus
-from apps.social_accounts.models import SocialAccount,PublishingTarget,MetaPage
+from apps.organizations.models import (
+    Organization,
+    OrganizationInvite,
+    OrganizationMember,
+)
+from apps.posts.models import Post, PostPlatform, PostPlatformMedia, PostStatus
+from apps.social_accounts.models import MetaPage, PublishingTarget, SocialAccount
+
+from .models import OTPToken, User
+
 # Register your models here.
 admin.site.register(OTPToken)
 admin.site.register(User)

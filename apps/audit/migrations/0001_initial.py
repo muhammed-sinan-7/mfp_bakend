@@ -10,20 +10,56 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('organizations', '0004_delete_auditlog'),
+        ("organizations", "0004_delete_auditlog"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AuditLog',
+            name="AuditLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('action', models.CharField(choices=[('LOGIN', 'Login'), ('ORG_CREATED', 'Organization Created'), ('MEMBER_ADDED', 'Member Added'), ('ROLE_CHANGED', 'Role Changed'), ('ORG_DELETED', 'Organization Deleted')], max_length=50)),
-                ('metadata', models.JSONField(blank=True, default=dict)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('actor', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='audit_logs', to=settings.AUTH_USER_MODEL)),
-                ('organization', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='organizations.organization')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "action",
+                    models.CharField(
+                        choices=[
+                            ("LOGIN", "Login"),
+                            ("ORG_CREATED", "Organization Created"),
+                            ("MEMBER_ADDED", "Member Added"),
+                            ("ROLE_CHANGED", "Role Changed"),
+                            ("ORG_DELETED", "Organization Deleted"),
+                        ],
+                        max_length=50,
+                    ),
+                ),
+                ("metadata", models.JSONField(blank=True, default=dict)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "actor",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="audit_logs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="organizations.organization",
+                    ),
+                ),
             ],
         ),
     ]

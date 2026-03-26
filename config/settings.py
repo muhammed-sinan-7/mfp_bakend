@@ -10,14 +10,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
 import os
+from datetime import timedelta
+from pathlib import Path
+
 import sentry_sdk
+from celery.schedules import crontab
+from dotenv import load_dotenv
 from sentry_sdk.integrations.django import DjangoIntegration
 
-from datetime import timedelta
-from dotenv import load_dotenv
-from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -35,6 +36,8 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "unforgetful-renetta-political.ngrok-free.dev",
+    "web",
+    "nginx",
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -42,7 +45,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 CORS_ALLOW_CREDENTIALS = True
-# Application definition
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -53,9 +55,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
-    'django_prometheus',
+    "django_prometheus",
     "drf_yasg",
-    'django_filters',
+    "django_filters",
     "rest_framework_simplejwt.token_blacklist",
     "apps.authentication",
     "apps.organizations",
@@ -65,7 +67,7 @@ INSTALLED_APPS = [
     "apps.analytics",
     "apps.news",
     "apps.audit",
-    'apps.ai',
+    "apps.ai",
 ]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -73,25 +75,24 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
-   
 }
 
-REST_FRAMEWORK.update({
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-        "rest_framework.throttling.ScopedRateThrottle",  # ✅ ADD
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": "20/min",
-        "user": "200/min",
-
-     
-        "otp_request": "5/min",
-        "otp_verify": "10/min",
-        "login": "5/min",
-    },
-})
+REST_FRAMEWORK.update(
+    {
+        "DEFAULT_THROTTLE_CLASSES": [
+            "rest_framework.throttling.AnonRateThrottle",
+            "rest_framework.throttling.UserRateThrottle",
+            "rest_framework.throttling.ScopedRateThrottle",  # ✅ ADD
+        ],
+        "DEFAULT_THROTTLE_RATES": {
+            "anon": "20/min",
+            "user": "200/min",
+            "otp_request": "5/min",
+            "otp_verify": "10/min",
+            "login": "5/min",
+        },
+    }
+)
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 
@@ -99,8 +100,8 @@ if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration()],
-        traces_sample_rate=0.2,  
-        send_default_pii=True
+        traces_sample_rate=0.2,
+        send_default_pii=True,
     )
 
 
@@ -121,27 +122,25 @@ SWAGGER_SETTINGS = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
         },
     },
-
     "root": {
         "handlers": ["console"],
         "level": "INFO",
     },
 }
 
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60  
+CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -172,9 +171,9 @@ LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET")
 LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI")
 
-GOOGLE_CLIENT_ID=os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET=os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI=os.getenv("GOOGLE_REDIRECT_URI")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -195,10 +194,10 @@ MIDDLEWARE = [
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
+        "LOCATION": os.getenv("REDIS_CACHE_URL"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
+        },
     }
 }
 ROOT_URLCONF = "config.urls"
@@ -272,6 +271,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = "static/"
+
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"

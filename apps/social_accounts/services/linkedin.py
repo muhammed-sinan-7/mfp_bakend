@@ -1,14 +1,18 @@
 import secrets
 import urllib.parse
+from datetime import timedelta
+
 import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
-from datetime import timedelta
-import requests
-from apps.social_accounts.models import PublishingTarget
-from apps.social_accounts.models import LinkedInOrganization
-from apps.social_accounts.models import SocialAccount,SocialProvider
+
+from apps.social_accounts.models import (
+    LinkedInOrganization,
+    PublishingTarget,
+    SocialAccount,
+    SocialProvider,
+)
 
 
 class LinkedInOAuthService:
@@ -17,14 +21,13 @@ class LinkedInOAuthService:
     TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
     PROFILE_URL = "https://api.linkedin.com/v2/userinfo"
 
-    STATE_TTL = 600 
+    STATE_TTL = 600
 
     @staticmethod
     def generate_authorization_url(organization_id):
-        
+
         state = secrets.token_urlsafe(32)
 
-     
         cache.set(
             f"linkedin_oauth_state:{state}",
             str(organization_id),
@@ -81,7 +84,6 @@ class LinkedInOAuthService:
         if not org_id:
             raise Exception("Invalid or expired OAuth state")
 
-        
         cache.delete(f"linkedin_oauth_state:{state}")
 
         return org_id
@@ -128,13 +130,12 @@ class LinkedInService:
 
     def __init__(self, social_account):
         self.social_account = social_account
-        
 
     def ensure_valid_token(self):
 
         if self.social_account.is_token_expired():
             raise Exception("LinkedIn token expired. Please reconnect account.")
-        
+
     def _headers(self):
         return {
             "Authorization": f"Bearer {self.access_token}",

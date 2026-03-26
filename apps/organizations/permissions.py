@@ -6,7 +6,8 @@ class HasOrganization(BasePermission):
 
     def has_permission(self, request, view):
         return hasattr(request, "organization") and request.organization is not None
-    
+
+
 class RolePermission(BasePermission):
     allowed_roles = []
 
@@ -17,8 +18,8 @@ class RolePermission(BasePermission):
             return False
 
         return membership.role in self.allowed_roles
-    
-    
+
+
 class IsOwner(RolePermission):
     allowed_roles = ["OWNER"]
 

@@ -1,10 +1,12 @@
-from django.db import models
-from apps.organizations.models import Organization
-from django.contrib.auth import get_user_model
 import uuid
-from django.utils import timezone
-from django.core.exceptions import ValidationError
+
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
+
+from apps.organizations.models import Organization
 from apps.social_accounts.models import PublishingTarget
 
 # Create your models here.
@@ -57,7 +59,6 @@ class Post(models.Model):
 
     def __str__(self):
         return str(self.id)
-
 
 
 class PlatformType(models.TextChoices):

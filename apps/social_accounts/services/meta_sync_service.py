@@ -3,6 +3,7 @@ from apps.social_accounts.models import (
     PublishingTarget,
     SocialProvider,
 )
+
 from .meta import MetaOAuthService
 
 
@@ -12,9 +13,7 @@ class MetaSyncService:
     def sync_pages(social_account):
         oauth_service = MetaOAuthService()
 
-        pages_data = oauth_service.fetch_pages(
-            user_token=social_account.access_token
-        )
+        pages_data = oauth_service.fetch_pages(user_token=social_account.access_token)
 
         synced_targets = []
 
@@ -31,7 +30,7 @@ class MetaSyncService:
                 defaults={
                     "name": page_name,
                     "page_access_token": page_token,
-                }
+                },
             )
 
             # 2️⃣ Create PublishingTarget for Facebook Page
@@ -42,7 +41,7 @@ class MetaSyncService:
                     "provider": SocialProvider.META,
                     "display_name": page_name,
                     "metadata": page,
-                }
+                },
             )
 
             synced_targets.append(publishing_target)
@@ -50,8 +49,7 @@ class MetaSyncService:
             # 3️⃣ Fetch Instagram Business Account
             try:
                 ig_data = oauth_service.fetch_instagram_account(
-                    page_id=page_id,
-                    page_token=page_token
+                    page_id=page_id, page_token=page_token
                 )
 
                 if ig_data and ig_data.get("id"):
@@ -59,8 +57,7 @@ class MetaSyncService:
                     ig_id = ig_data["id"]
 
                     ig_profile = oauth_service.fetch_instagram_profile(
-                        ig_id=ig_id,
-                        page_token=page_token
+                        ig_id=ig_id, page_token=page_token
                     )
 
                     # 4️⃣ Update MetaPage with IG Business ID
@@ -75,7 +72,7 @@ class MetaSyncService:
                             "provider": SocialProvider.INSTAGRAM,
                             "display_name": ig_profile.get("username"),
                             "metadata": ig_profile,
-                        }
+                        },
                     )
 
                     synced_targets.append(ig_target)

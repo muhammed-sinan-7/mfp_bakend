@@ -1,10 +1,14 @@
+from django.utils import timezone
+from rest_framework import serializers
 from rest_framework.generics import ListAPIView
-from apps.social_accounts.models import PublishingTarget,SocialProvider
+
+from apps.social_accounts.models import PublishingTarget, SocialProvider
+
+from ..models import PublishingTarget, SocialAccount
+
 # from .serializers import PublishingTargetSerializer/
 
-from rest_framework import serializers
-from ..models import SocialAccount,PublishingTarget
-from django.utils import timezone
+
 
 class PublishingTargetSerializer(serializers.ModelSerializer):
 
@@ -25,10 +29,7 @@ class PublishingTargetSerializer(serializers.ModelSerializer):
 
 class SocialAccountSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
-    publishing_targets = PublishingTargetSerializer(
-        many=True,
-        read_only=True
-    )
+    publishing_targets = PublishingTargetSerializer(many=True, read_only=True)
 
     class Meta:
         model = SocialAccount
@@ -54,14 +55,11 @@ class SocialAccountSerializer(serializers.ModelSerializer):
             return "expiring"
 
         return "active"
-    
-
-
 
 
 from rest_framework import serializers
-from apps.social_accounts.models import PublishingTarget
 
+from apps.social_accounts.models import PublishingTarget
 
 # class PublishingTargetSerializer(serializers.ModelSerializer):
 #     class Meta:

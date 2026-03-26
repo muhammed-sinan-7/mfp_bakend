@@ -1,6 +1,6 @@
 import requests
-from .base import empty_metrics
 
+from .base import empty_metrics
 
 GRAPH_VERSION = "v25.0"
 GRAPH_URL = f"https://graph.facebook.com/{GRAPH_VERSION}"
@@ -20,11 +20,11 @@ def fetch(post_platform):
             "fields": "media_type,like_count,comments_count",
             "access_token": access_token,
         },
-        timeout=10
+        timeout=10,
     )
 
     if media_res.status_code != 200:
-        
+
         return metrics
 
     media = media_res.json()
@@ -41,11 +41,11 @@ def fetch(post_platform):
             "metric": "views,reach,saved",
             "access_token": access_token,
         },
-        timeout=10
+        timeout=10,
     )
 
     if insights_res.status_code != 200:
-        
+
         return metrics
 
     data = insights_res.json().get("data", [])

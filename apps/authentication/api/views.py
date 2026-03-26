@@ -1,41 +1,37 @@
 # apps/authentication/api/views.py
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework import status
+from rest_framework.exceptions import Throttled
 from rest_framework.permissions import IsAuthenticated
-from apps.audit.services import log_event
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
+
 from apps.audit.models import AuditLog
-from apps.organizations.models import OrganizationMember
+from apps.audit.services import log_event
 from apps.authentication.api.serializers import (
-    RegistrationSerializer,
     LoginSerializer,
     OTPRequestSerializer,
     OTPVerifySerializer,
+    RegistrationSerializer,
 )
-
-from apps.authentication.services.auth_service import (
-    login_user,
-    verify_email,
-)
-
-from apps.authentication.services.otp_service import (
-    create_otp,
-    verify_otp,
-)
-
-from apps.authentication.services.throttle_service import throttle_request
-
 from apps.authentication.exceptions import (
     OTPCooldownException,
     OTPInvalidException,
     OTPLockedException,
 )
-
-from rest_framework.exceptions import Throttled
+from apps.authentication.services.auth_service import (
+    login_user,
+    verify_email,
+)
+from apps.authentication.services.otp_service import (
+    create_otp,
+    verify_otp,
+)
+from apps.authentication.services.throttle_service import throttle_request
+from apps.organizations.models import OrganizationMember
 
 User = get_user_model()
 

@@ -1,18 +1,18 @@
 from django.urls import path
+
 from .views import (
-    PostCreateAPIView,
     EmptyRecycleBinView,
     PermanentDeletePostView,
+    PostCreateAPIView,
     PostDeleteView,
-    PostRestoreView,
     PostDetailView,
     PostListView,
+    PostRestoreView,
+    PostUpdateView,
     RecycleBinListView,
-    PostUpdateView
 )
 
 urlpatterns = [
- 
     path("", PostListView.as_view()),
     path("create/", PostCreateAPIView.as_view()),
     path("<uuid:pk>/", PostDetailView.as_view()),

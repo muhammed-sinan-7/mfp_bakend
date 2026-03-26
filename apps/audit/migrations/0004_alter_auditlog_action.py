@@ -6,13 +6,27 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('audit', '0003_alter_auditlog_options_auditlog_ip_address_and_more'),
+        ("audit", "0003_alter_auditlog_options_auditlog_ip_address_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='auditlog',
-            name='action',
-            field=models.CharField(choices=[('LOGIN_SUCCESS', 'Login Success'), ('LOGIN_FAILED', 'Login Failed'), ('LOGOUT', 'Logout'), ('TOKEN_REFRESH', 'Token Refresh'), ('OTP_VERIFIED', 'OTP Verified'), ('ORG_CREATED', 'Organization Created'), ('ORG_DELETED', 'Organization Deleted'), ('MEMBER_REMOVED', 'Member Removed'), ('ROLE_CHANGED', 'Role Changed')], db_index=True, max_length=50),
+            model_name="auditlog",
+            name="action",
+            field=models.CharField(
+                choices=[
+                    ("LOGIN_SUCCESS", "Login Success"),
+                    ("LOGIN_FAILED", "Login Failed"),
+                    ("LOGOUT", "Logout"),
+                    ("TOKEN_REFRESH", "Token Refresh"),
+                    ("OTP_VERIFIED", "OTP Verified"),
+                    ("ORG_CREATED", "Organization Created"),
+                    ("ORG_DELETED", "Organization Deleted"),
+                    ("MEMBER_REMOVED", "Member Removed"),
+                    ("ROLE_CHANGED", "Role Changed"),
+                ],
+                db_index=True,
+                max_length=50,
+            ),
         ),
     ]

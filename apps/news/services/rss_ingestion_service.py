@@ -1,12 +1,15 @@
+import logging
+from datetime import datetime, timezone
+
 import feedparser
 import requests
-from datetime import datetime, timezone
-from django.utils import timezone as dj_timezone
 from bs4 import BeautifulSoup
+from django.utils import timezone as dj_timezone
 from newspaper import Article
-from ..models import NewsArticle, NewsSource
+
 from apps.ai.services.llm_service import AIService
-import logging
+
+from ..models import NewsArticle, NewsSource
 
 logger = logging.getLogger(__name__)
 
@@ -135,8 +138,8 @@ class RSSIntegrationService:
 
         data = {
             "title": getattr(entry, "title", ""),
-            "summary": clean_summary,          # ✅ cleaned
-            "raw_summary": raw_summary,        # optional (store if needed)
+            "summary": clean_summary,  # ✅ cleaned
+            "raw_summary": raw_summary,  # optional (store if needed)
             "url": getattr(entry, "link", ""),
             "image": self.extract_image(entry),
             "source": source,
@@ -195,9 +198,7 @@ RULES:
 
         ai_summary = ""
         if len(content_to_use) > 500:
-            ai_summary = self.generate_ai_summary(
-                data["title"], content_to_use
-            )
+            ai_summary = self.generate_ai_summary(data["title"], content_to_use)
 
         return NewsArticle.objects.create(
             title=data["title"],
@@ -217,9 +218,7 @@ RULES:
     def run(self, industry_id=None):
         sources = self.fetch_sources(industry_id=industry_id)
 
-        existing_urls = set(
-            NewsArticle.objects.values_list("url", flat=True)
-        )
+        existing_urls = set(NewsArticle.objects.values_list("url", flat=True))
 
         total_processed = 0
         total_created = 0
@@ -253,9 +252,7 @@ RULES:
                         logger.warning(f"Entry failed: {e}", exc_info=True)
 
             except Exception as e:
-                logger.error(
-                    f"Source failed: {source.rss_url}", exc_info=True
-                )
+                logger.error(f"Source failed: {source.rss_url}", exc_info=True)
 
         logger.info(
             f"News fetch completed | processed={total_processed}, created={total_created}"

@@ -1,22 +1,39 @@
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
-from rest_framework.response import Response
-from rest_framework import status
-from apps.organizations.mixins import OrganizationContextMixin
-from .serializers import PostCreateSerializer
-from django.utils import timezone
-from apps.posts.models import Post, PostPlatform
-from apps.posts.api.serializers import PostListSerializer
-from apps.posts.api.serializers import PostDetailSerializer
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import generics
 from django.db import transaction
-from apps.posts.api.serializers import PlatformUpdateSerializer
-from rest_framework.filters import SearchFilter, OrderingFilter
-from django_filters.rest_framework import DjangoFilterBackend
-from apps.audit.services import log_event
-from apps.audit.models import AuditLog
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import generics, status
+from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.audit.models import AuditLog
+from apps.audit.services import log_event
+from apps.organizations.mixins import OrganizationContextMixin
+from apps.posts.api.serializers import (
+    PlatformUpdateSerializer,
+    PostDetailSerializer,
+    PostListSerializer,
+)
+from apps.posts.models import Post, PostPlatform
+
+from .serializers import PostCreateSerializer
+
+
+def get_queryset(self):
+    # Swagger safe
+    if getattr(self, "swagger_fake_view", False):
+        return Post.objects.none()
+
+    # Safe fallback
+    if not hasattr(self.request, "organization") or not self.request.organization:
+        return Post.objects.none()
+
+    return Post.objects.filter(
+        organization=self.request.organization, is_deleted=False
+    ).prefetch_related("platforms", "platforms__media", "platforms__publishing_target")
 
 
 class PostCreateAPIView(OrganizationContextMixin, APIView):
@@ -136,11 +153,14 @@ class PostDetailView(OrganizationContextMixin, generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Post.objects.none()
+
+        if not hasattr(self.request, "organization") or not self.request.organization:
+            return Post.objects.none()
 
         return Post.objects.filter(
             organization=self.request.organization, is_deleted=False
-        ).prefetch_related(
-            "platforms", "platforms__media", "platforms__publishing_target"
         )
 
 
@@ -150,11 +170,7 @@ class PostDeleteView(OrganizationContextMixin, APIView):
 
     def delete(self, request, pk):
 
-        post = get_object_or_404(
-            Post,
-            id=pk,
-            organization=request.organization
-        )
+        post = get_object_or_404(Post, id=pk, organization=request.organization)
 
         if post.is_deleted:
             return Response({"message": "Already deleted"}, status=200)

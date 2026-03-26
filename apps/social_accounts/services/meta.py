@@ -1,6 +1,7 @@
+from urllib.parse import urlencode
+
 import requests
 from django.conf import settings
-from urllib.parse import urlencode
 
 
 class MetaOAuthService:

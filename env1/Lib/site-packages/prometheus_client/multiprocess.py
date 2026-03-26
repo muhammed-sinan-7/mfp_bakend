@@ -1,8 +1,8 @@
-from collections import defaultdict
 import glob
 import json
 import os
 import warnings
+from collections import defaultdict
 
 from .metrics import Gauge
 from .metrics_core import Metric

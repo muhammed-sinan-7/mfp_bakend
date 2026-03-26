@@ -6,7 +6,6 @@ See also nltk/test/tokenize.doctest
 from typing import List, Tuple
 
 import pytest
-
 from nltk.tokenize import (
     LegalitySyllableTokenizer,
     StanfordSegmenter,

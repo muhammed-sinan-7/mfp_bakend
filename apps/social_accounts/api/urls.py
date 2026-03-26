@@ -1,15 +1,19 @@
 from django.urls import path
-from .views import( MetaConnectView, MetaCallbackView,
-                   LinkedInCallbackView,LinkedInConnectView,
-                   SocialAccountListView,
-                   YouTubeCallbackView,
-                   YouTubeConnectView,
-                   PublishingTargetListAPIView,
-                   SocialAccountRefreshView,
-                   SocialAccountDisconnectView)
+
+from .views import (
+    LinkedInCallbackView,
+    LinkedInConnectView,
+    MetaCallbackView,
+    MetaConnectView,
+    PublishingTargetListAPIView,
+    SocialAccountDisconnectView,
+    SocialAccountListView,
+    SocialAccountRefreshView,
+    YouTubeCallbackView,
+    YouTubeConnectView,
+)
 
 urlpatterns = [
-    
     path("", SocialAccountListView.as_view()),
     path("meta/connect/", MetaConnectView.as_view()),
     path("meta/callback/", MetaCallbackView.as_view()),
@@ -19,5 +23,7 @@ urlpatterns = [
     path("youtube/callback/", YouTubeCallbackView.as_view()),
     path("publishing-targets/", PublishingTargetListAPIView.as_view()),
     path("accounts/<uuid:account_id>/refresh/", SocialAccountRefreshView.as_view()),
-path("accounts/<uuid:account_id>/disconnect/", SocialAccountDisconnectView.as_view()),
+    path(
+        "accounts/<uuid:account_id>/disconnect/", SocialAccountDisconnectView.as_view()
+    ),
 ]

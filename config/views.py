@@ -1,7 +1,9 @@
-from django.http import JsonResponse
-from django.db import connection
-import redis
 import os
+
+import redis
+from django.db import connection
+from django.http import JsonResponse
+
 
 def health_check(request):
     return JsonResponse({"status": "ok"})

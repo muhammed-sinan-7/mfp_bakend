@@ -1,5 +1,4 @@
 import pytest
-
 from nltk.data import find
 from nltk.parse.bllip import BllipParser
 from nltk.tree import Tree
