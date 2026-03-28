@@ -23,7 +23,7 @@ class NewsSource(models.Model):
 
 
 class NewsArticle(models.Model):
-    title = models.CharField(max_length=300)
+    title = models.TextField()
     summary = models.TextField()
     url = models.URLField(unique=True)
     image = models.URLField(blank=True, null=True)

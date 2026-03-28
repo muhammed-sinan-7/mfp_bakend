@@ -32,13 +32,22 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG") == "True"
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1")
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "unforgetful-renetta-political.ngrok-free.dev",
-    "web",
-    "nginx",
+# ALLOWED_HOSTS = [
+#     "localhost",
+#     "127.0.0.1",
+#     "unforgetful-renetta-political.ngrok-free.dev",
+#     "web",
+#     "nginx",
+# ]
+ALLOWED_HOSTS=[
+    "*"
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
@@ -56,6 +65,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "django_prometheus",
+    'storages',
     "drf_yasg",
     "django_filters",
     "rest_framework_simplejwt.token_blacklist",
@@ -76,6 +86,44 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
+
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "ap-south-1")
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880 
+# Media files configuration
+# Add right before the S3 settings
+
+print(f"DEBUG: DEFAULT_FILE_STORAGE being set now")
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+print(f"DEBUG: DEFAULT_FILE_STORAGE = {DEFAULT_FILE_STORAGE}")
+
+FILE_UPLOAD_TEMP_DIR = None 
+
+
+# S3 Behavior Settings
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False     
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_URL_PROTOCOL = 'https'
+AWS_S3_ADDRESS_STYLE = 'virtual'  
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+
 
 REST_FRAMEWORK.update(
     {
@@ -274,5 +322,5 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_ROOT = BASE_DIR / "media"
-MEDIA_URL = "/media/"
+# MEDIA_ROOT = BASE_DIR / "media"
+# MEDIA_URL = "/media/"

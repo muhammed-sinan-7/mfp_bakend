@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = 50
 
 
-@shared_task(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=True)
+@shared_task(bind=True, max_retries=3)
 def publish_platform(self, platform_id):
     try:
         # --- LOCK & INITIAL STATE ---
@@ -82,19 +82,28 @@ def publish_platform(self, platform_id):
             platform.failure_reason = str(e)
 
             if platform.retry_count >= 3:
+                # All retries exhausted — mark as FAILED permanently
                 platform.publish_status = PublishStatus.FAILED
+                platform.save(
+                    update_fields=[
+                        "publish_status",
+                        "retry_count",
+                        "failure_reason",
+                    ]
+                )
+                logger.error(f"[FAILED] Platform {platform_id} exhausted all retries.")
+                return  # Do NOT raise so Celery doesn't retry again
             else:
                 platform.publish_status = PublishStatus.PROCESSING
+                platform.save(
+                    update_fields=[
+                        "publish_status",
+                        "retry_count",
+                        "failure_reason",
+                    ]
+                )
 
-            platform.save(
-                update_fields=[
-                    "publish_status",
-                    "retry_count",
-                    "failure_reason",
-                ]
-            )
-
-        raise self.retry(countdown=60 * (2**self.request.retries))
+        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
 
 
 @shared_task

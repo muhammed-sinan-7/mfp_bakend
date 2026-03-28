@@ -14,9 +14,9 @@ from .models import OTPToken, User
 # Register your models here.
 admin.site.register(OTPToken)
 admin.site.register(User)
-admin.site.register(Organization)
-admin.site.register(OrganizationInvite)
-admin.site.register(OrganizationMember)
+# admin.site.register(Organization)
+# admin.site.register(OrganizationInvite)
+# admin.site.register(OrganizationMember)
 admin.site.register(Industry)
 admin.site.register(Post)
 admin.site.register(PostPlatformMedia)

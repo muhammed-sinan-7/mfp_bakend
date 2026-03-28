@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-
+from storages.backends.s3boto3 import S3Boto3Storage
 from apps.industries.models import Industry
 from common.models import BaseModel, SoftDeleteModel
 
@@ -16,6 +16,14 @@ class Organization(SoftDeleteModel, BaseModel):
     industry = models.ForeignKey(Industry, on_delete=models.SET_NULL, null=True)
     tagline = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def get_logo_url(self):
+        """Return the full S3 signed URL"""
+        if self.logo:
+            storage = S3Boto3Storage()
+            return storage.url(self.logo.name)  
+        return None
+
 
     def __str__(self):
         return self.name

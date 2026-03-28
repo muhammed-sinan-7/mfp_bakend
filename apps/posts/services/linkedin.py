@@ -1,8 +1,5 @@
 import requests
-from django.conf import settings
-from django.utils import timezone
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
+import time
 
 from .base import BasePublisher
 
@@ -23,7 +20,9 @@ class LinkedInPublisher(BasePublisher):
             raise Exception("LinkedIn token expired")
 
         access_token = social_account.access_token
-        author_urn = f"urn:li:person:{post_platform.publishing_target.resource_id}"
+
+        person_id = social_account.external_id
+        author_urn = f"urn:li:person:{person_id}"
 
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -35,15 +34,13 @@ class LinkedInPublisher(BasePublisher):
         video = post_platform.media.filter(media_type="VIDEO").first()
 
         if video:
-            media_urn = self._upload_video(
-                video.file.path, access_token, social_account.external_id
-            )
+            media_urn = self._upload_video(video.file, access_token, person_id)
             share_media_category = "VIDEO"
+
         elif image:
-            media_urn = self._upload_image(
-                image.file.path, access_token, social_account.external_id
-            )
+            media_urn = self._upload_image(image.file, access_token, person_id)
             share_media_category = "IMAGE"
+
         else:
             media_urn = None
             share_media_category = "NONE"
@@ -64,21 +61,34 @@ class LinkedInPublisher(BasePublisher):
             payload["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
                 {
                     "status": "READY",
-                    "description": {"text": caption},
                     "media": media_urn,
+                    "title": {"text": "Shared Image"},
                 }
             ]
+
+        print("FINAL PAYLOAD:", payload)
 
         response = requests.post(
             f"{self.BASE_URL}/ugcPosts", json=payload, headers=headers
         )
+
+        print("POST RESPONSE:", response.status_code, response.text)
 
         if response.status_code not in [200, 201]:
             raise Exception(f"LinkedIn publish failed: {response.text}")
 
         return {"external_id": response.json().get("id")}
 
-    def _upload_image(self, file_path, access_token, person_id):
+    def _wait_for_asset_ready(self, asset, access_token):
+        """
+        LinkedIn's /v2/assets/{urn} status endpoint is unreliable.
+        After a successful PUT upload the asset is ready within a few seconds.
+        A short sleep is the standard approach for this legacy API.
+        """
+        print(f"[ASSET READY] Waiting 4s for asset to process: {asset}")
+        time.sleep(4)
+
+    def _upload_image(self, file_field, access_token, person_id):
 
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -105,6 +115,8 @@ class LinkedInPublisher(BasePublisher):
             headers=headers,
         )
 
+        print("REGISTER IMAGE:", register_res.status_code, register_res.text)
+
         if register_res.status_code != 200:
             raise Exception(f"LinkedIn image register failed: {register_res.text}")
 
@@ -115,15 +127,30 @@ class LinkedInPublisher(BasePublisher):
         ]["uploadUrl"]
         asset = data["value"]["asset"]
 
-        with open(file_path, "rb") as f:
-            upload_res = requests.put(upload_url, data=f)
+        # ✅ S3-safe read
+        file_field.open()
+        file_bytes = file_field.read()
+        file_field.close()
 
-        if upload_res.status_code not in [200, 201]:
-            raise Exception("LinkedIn image upload failed")
+        upload_res = requests.put(
+            upload_url,
+            data=file_bytes,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/octet-stream",
+            },
+        )
+
+        print("UPLOAD IMAGE:", upload_res.status_code, upload_res.text[:200])
+
+        if upload_res.status_code not in [200, 201, 202]:
+            raise Exception(f"LinkedIn image upload failed: {upload_res.status_code} {upload_res.text[:300]}")
+
+        self._wait_for_asset_ready(asset, access_token)
 
         return asset
 
-    def _upload_video(self, file_path, access_token, person_id):
+    def _upload_video(self, file_field, access_token, person_id):
 
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -150,6 +177,8 @@ class LinkedInPublisher(BasePublisher):
             headers=headers,
         )
 
+        print("REGISTER VIDEO:", register_res.status_code, register_res.text)
+
         if register_res.status_code != 200:
             raise Exception(f"LinkedIn video register failed: {register_res.text}")
 
@@ -160,10 +189,24 @@ class LinkedInPublisher(BasePublisher):
         ]["uploadUrl"]
         asset = data["value"]["asset"]
 
-        with open(file_path, "rb") as f:
-            upload_res = requests.put(upload_url, data=f)
+        file_field.open()
+        file_bytes = file_field.read()
+        file_field.close()
 
-        if upload_res.status_code not in [200, 201]:
-            raise Exception("LinkedIn video upload failed")
+        upload_res = requests.put(
+            upload_url,
+            data=file_bytes,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/octet-stream",
+            },
+        )
+
+        print("UPLOAD VIDEO:", upload_res.status_code, upload_res.text[:200])
+
+        if upload_res.status_code not in [200, 201, 202]:
+            raise Exception(f"LinkedIn video upload failed: {upload_res.status_code} {upload_res.text[:300]}")
+
+        self._wait_for_asset_ready(asset, access_token)
 
         return asset

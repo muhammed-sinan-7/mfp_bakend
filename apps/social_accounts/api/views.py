@@ -313,7 +313,7 @@ class PublishingTargetListAPIView(OrganizationContextMixin, ListAPIView):
     def get_queryset(self):
         return PublishingTarget.objects.filter(
             social_account__organization=self.request.organization, is_active=True
-        )
+        ).order_by("-id")
 
 
 class SocialAccountRefreshView(OrganizationContextMixin, APIView):
