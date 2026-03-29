@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from django.conf import settings
-from django.db.models import Max, OuterRef, Subquery, Sum
+from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from google.oauth2.credentials import Credentials
@@ -37,11 +37,25 @@ class YouTubeOverviewView(OrganizationContextMixin, APIView):
             watch_time=Sum("watch_time"),
         )
 
+        account = org.social_accounts.filter(provider=SocialProvider.YOUTUBE).first()
+        metadata = getattr(account, "metadata", {}) if account else {}
+        subscribers = (
+            metadata.get("subscriber_count")
+            or metadata.get("subscribers")
+            or metadata.get("subscriberCount")
+            or 0
+        )
+        estimated_revenue = (
+            metadata.get("estimated_revenue")
+            or metadata.get("estimatedRevenue")
+            or 0
+        )
+
         return Response(
             {
-                "subscribers": 128492,
+                "subscribers": int(subscribers or 0),
                 "watch_time": data["watch_time"] or 0,
-                "estimated_revenue": 12840,
+                "estimated_revenue": float(estimated_revenue or 0),
             }
         )
 
@@ -90,11 +104,21 @@ class YouTubeVideoAnalyticsView(OrganizationContextMixin, APIView):
         qs = PostPlatformAnalytics.objects.filter(
             post_platform__post__organization_id=org.id,
             post_platform__publishing_target__provider=SocialProvider.YOUTUBE,
-        ).order_by("-id")[:20]
+        ).prefetch_related("post_platform__media").order_by("-id")[:20]
 
         data = []
 
+        def resolve_media(post_platform):
+            media = post_platform.media.order_by("order").first()
+            if not media:
+                return None, None
+            file_url = media.file.url if media.file else None
+            if file_url and not str(file_url).startswith("http"):
+                file_url = request.build_absolute_uri(file_url)
+            return file_url, media.media_type
+
         for v in qs:
+            thumbnail, media_type = resolve_media(v.post_platform)
 
             data.append(
                 {
@@ -105,6 +129,8 @@ class YouTubeVideoAnalyticsView(OrganizationContextMixin, APIView):
                     "ctr": round((v.likes / v.views * 100) if v.views else 0, 2),
                     "comments": v.comments,
                     "status": "Trending" if v.views > 50000 else "Published",
+                    "thumbnail": thumbnail,
+                    "media_type": media_type,
                 }
             )
 

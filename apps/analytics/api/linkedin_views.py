@@ -1,4 +1,4 @@
-from django.db.models import Max, Sum
+from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,18 +21,25 @@ class LinkedInOverviewView(OrganizationContextMixin, APIView):
 
         data = qs.aggregate(
             impressions=Sum("impressions"),
-            views=Max("views"),
+            views=Sum("views"),
             likes=Sum("likes"),
             comments=Sum("comments"),
             shares=Sum("shares"),
         )
 
+        impressions = data["impressions"] or 0
+        likes = data["likes"] or 0
+        comments = data["comments"] or 0
+        shares = data["shares"] or 0
+        engagement = likes + comments + shares
+        click_through_rate = round((engagement / impressions * 100), 2) if impressions else 0
+
         return Response(
             {
-                "connections": data["likes"] or 0,
+                "connections": likes,
                 "unique_visitors": data["views"] or 0,
-                "post_impressions": data["impressions"] or 0,
-                "click_through_rate": 4.2,  # placeholder
+                "post_impressions": impressions,
+                "click_through_rate": click_through_rate,
             }
         )
 
@@ -66,11 +73,21 @@ class LinkedInPostAnalyticsView(OrganizationContextMixin, APIView):
         qs = PostPlatformAnalytics.objects.filter(
             post_platform__post__organization=org,
             post_platform__publishing_target__provider="linkedin",
-        ).order_by("-created_at")[:20]
+        ).prefetch_related("post_platform__media").order_by("-created_at")[:20]
 
         data = []
 
+        def resolve_media(post_platform):
+            media = post_platform.media.order_by("order").first()
+            if not media:
+                return None, None
+            file_url = media.file.url if media.file else None
+            if file_url and not str(file_url).startswith("http"):
+                file_url = request.build_absolute_uri(file_url)
+            return file_url, media.media_type
+
         for p in qs:
+            thumbnail, media_type = resolve_media(p.post_platform)
 
             data.append(
                 {
@@ -83,6 +100,8 @@ class LinkedInPostAnalyticsView(OrganizationContextMixin, APIView):
                         (p.likes / p.impressions * 100) if p.impressions else 0, 2
                     ),
                     "status": "High Engagement" if p.likes > 100 else "Normal",
+                    "thumbnail": thumbnail,
+                    "media_type": media_type,
                 }
             )
 

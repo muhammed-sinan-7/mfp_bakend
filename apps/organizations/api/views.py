@@ -222,7 +222,11 @@ class OrganizationSettingsView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request):
-        membership = OrganizationMember.objects.filter(user=request.user).first()
+        membership = (
+            OrganizationMember.objects.select_related("organization__industry")
+            .filter(user=request.user, is_deleted=False)
+            .first()
+        )
 
         if not membership:
             return Response({"error": "No organization"}, status=404)
@@ -233,7 +237,11 @@ class OrganizationSettingsView(APIView):
         return Response(serializer.data)
 
     def patch(self, request):
-        membership = OrganizationMember.objects.filter(user=request.user).first()
+        membership = (
+            OrganizationMember.objects.select_related("organization__industry")
+            .filter(user=request.user, is_deleted=False)
+            .first()
+        )
 
         if not membership:
             return Response({"error": "No organization"}, status=404)

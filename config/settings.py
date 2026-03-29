@@ -302,6 +302,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Development-only optimization for local auth speed.
+# Keep disabled in production.
+if DEBUG and os.getenv("DEV_FAST_PASSWORD_HASHER", "False") == "True":
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/

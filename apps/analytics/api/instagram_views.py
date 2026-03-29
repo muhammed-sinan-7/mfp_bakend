@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.db.models import F, Max, Sum
+from django.db.models import F, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework.response import Response
@@ -27,7 +27,7 @@ class InstagramOverviewView(OrganizationContextMixin, APIView):
 
         data = qs.aggregate(
             impressions=Sum("impressions"),
-            views=Max("views"),
+            views=Sum("views"),
             likes=Sum("likes"),
             comments=Sum("comments"),
             saves=Sum("saves"),
@@ -77,13 +77,24 @@ class InstagramTopPostsView(OrganizationContextMixin, APIView):
                 post_platform__post__organization=org,
                 post_platform__publishing_target__provider="instagram",
             )
+            .prefetch_related("post_platform__media")
             .annotate(engagement=F("likes") + F("comments") + F("shares"))
             .order_by("-engagement")[:5]
         )
 
         data = []
 
+        def resolve_media(post_platform):
+            media = post_platform.media.order_by("order").first()
+            if not media:
+                return None, None
+            file_url = media.file.url if media.file else None
+            if file_url and not str(file_url).startswith("http"):
+                file_url = request.build_absolute_uri(file_url)
+            return file_url, media.media_type
+
         for p in qs:
+            thumbnail, media_type = resolve_media(p.post_platform)
 
             data.append(
                 {
@@ -92,6 +103,8 @@ class InstagramTopPostsView(OrganizationContextMixin, APIView):
                     "likes": p.likes,
                     "comments": p.comments,
                     "engagement": p.engagement,
+                    "thumbnail": thumbnail,
+                    "media_type": media_type,
                 }
             )
 
@@ -130,13 +143,23 @@ class InstagramPostPerformanceView(OrganizationContextMixin, APIView):
         qs = PostPlatformAnalytics.objects.filter(
             post_platform__post__organization=org,
             post_platform__publishing_target__provider="instagram",
-        ).order_by("-created_at")[:20]
+        ).prefetch_related("post_platform__media").order_by("-created_at")[:20]
 
         data = []
+
+        def resolve_media(post_platform):
+            media = post_platform.media.order_by("order").first()
+            if not media:
+                return None, None
+            file_url = media.file.url if media.file else None
+            if file_url and not str(file_url).startswith("http"):
+                file_url = request.build_absolute_uri(file_url)
+            return file_url, media.media_type
 
         for p in qs:
 
             engagement = p.likes + p.comments + p.shares
+            thumbnail, media_type = resolve_media(p.post_platform)
 
             data.append(
                 {
@@ -145,6 +168,8 @@ class InstagramPostPerformanceView(OrganizationContextMixin, APIView):
                     "engagement": engagement,
                     "reach": p.impressions,
                     "date": p.created_at,
+                    "thumbnail": thumbnail,
+                    "media_type": media_type,
                 }
             )
 

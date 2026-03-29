@@ -102,6 +102,23 @@ class PostService:
 
         hashtags = [h.strip() for h in hashtags if isinstance(h, str)]
 
+        # Ensure UI always gets usable text, even for hook-only/hashtags-only intents.
+        if not caption and hook:
+            caption = hook
+
+        if not caption and hashtags:
+            caption = "Suggested hashtags: " + " ".join(hashtags[:5])
+
+        if not hook and caption:
+            # Keep hook non-empty for components that display it prominently.
+            hook = caption[:120].strip()
+
+        if not caption:
+            caption = (
+                "I can help with hooks, captions, hashtags, and rewrites. "
+                "Try: 'Write a YouTube caption about Python for beginners.'"
+            )
+
         return {
             "hook": hook,
             "caption": caption,

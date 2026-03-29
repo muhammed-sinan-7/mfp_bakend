@@ -97,7 +97,11 @@ class PostListView(OrganizationContextMixin, generics.ListAPIView):
 
         return (
             Post.objects.filter(organization=org, is_deleted=False)
-            .prefetch_related("platforms", "platforms__publishing_target")
+            .prefetch_related(
+                "platforms",
+                "platforms__publishing_target",
+                "platforms__media",
+            )
             .distinct()
             .order_by("-created_at")
         )

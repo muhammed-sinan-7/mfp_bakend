@@ -1,6 +1,7 @@
 from django.db.models import F, Max, OuterRef, Subquery, Sum
 from django.db.models.functions import TruncDate, TruncHour, TruncMinute
 from django.utils.timezone import now, timedelta
+from django.core.cache import cache
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -56,7 +57,8 @@ class AnalyticsOverviewView(OrganizationContextMixin, APIView):
 
         engagement = likes + comments + shares
 
-        engagement_rate = (engagement / views * 100) if impressions else 0
+        base = impressions if impressions > 0 else views
+        engagement_rate = (engagement / base * 100) if base else 0
 
         return Response(
             {
@@ -108,7 +110,7 @@ class PlatformAnalyticsView(OrganizationContextMixin, APIView):
         analytics = (
             PostPlatformAnalytics.objects.filter(post_platform__post__organization=org)
             .values("post_platform__publishing_target__provider")
-            .annotate(likes=Sum("likes"), comments=Sum("comments"), views=Max("views"))
+            .annotate(likes=Sum("likes"), comments=Sum("comments"), views=Sum("views"))
         )
 
         return Response(analytics)
@@ -226,10 +228,20 @@ class RecentPostsAPIView(OrganizationContextMixin, APIView):
                 "post_platform__post",
                 "post_platform__publishing_target",
             )
+            .prefetch_related("post_platform__media")
             .order_by("-created_at")[:10]
         )
 
         data = []
+
+        def resolve_media(post_platform):
+            media = post_platform.media.order_by("order").first()
+            if not media:
+                return None, None
+            file_url = media.file.url if media.file else None
+            if file_url and not str(file_url).startswith("http"):
+                file_url = request.build_absolute_uri(file_url)
+            return file_url, media.media_type
 
         for item in qs:
 
@@ -240,6 +252,7 @@ class RecentPostsAPIView(OrganizationContextMixin, APIView):
             impressions = item.impressions or item.views
 
             engagement_rate = (engagement / impressions * 100) if impressions else 0
+            thumbnail, media_type = resolve_media(item.post_platform)
 
             data.append(
                 {
@@ -249,6 +262,8 @@ class RecentPostsAPIView(OrganizationContextMixin, APIView):
                     "impressions": impressions,
                     "engagement_rate": round(engagement_rate, 2),
                     "status": "High Growth" if engagement > 100 else "Standard",
+                    "thumbnail": thumbnail,
+                    "media_type": media_type,
                 }
             )
 
@@ -260,6 +275,12 @@ class FullDashboardAPIView(OrganizationContextMixin, APIView):
     def get(self, request):
 
         org = request.organization
+        cache_key = f"analytics:dashboard:full:{org.id}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data is not None:
+            return Response(cached_data)
+
         today = now()
         last_7_days = today - timedelta(days=7)
 
@@ -285,6 +306,7 @@ class FullDashboardAPIView(OrganizationContextMixin, APIView):
         # ------------------ TOP POSTS ------------------
         top_posts_qs = (
             PostPlatformAnalytics.objects.filter(post_platform__post__organization=org)
+            .select_related("post_platform__publishing_target")
             .annotate(engagement=F("likes") + F("comments") + F("shares"))
             .order_by("-engagement")[:5]
         )
@@ -329,11 +351,14 @@ class FullDashboardAPIView(OrganizationContextMixin, APIView):
                 )
 
         # ------------------ RESPONSE ------------------
-        return Response(
-            {
-                "stats": {"reach": reach, "engagement_rate": round(engagement_rate, 2)},
-                "top_posts": top_posts,
-                "recent_posts": recent_posts,
-                "news": news,
-            }
-        )
+        payload = {
+            "stats": {"reach": reach, "engagement_rate": round(engagement_rate, 2)},
+            "top_posts": top_posts,
+            "recent_posts": recent_posts,
+            "news": news,
+        }
+
+        
+        cache.set(cache_key, payload, timeout=30)
+
+        return Response(payload)

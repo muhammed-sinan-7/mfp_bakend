@@ -1,9 +1,13 @@
 # apps/authentication/services/otp_service.py
 
 import secrets
+import threading
+import logging
+import hashlib
+import hmac
 from datetime import timedelta
 
-import bcrypt
+from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
@@ -16,6 +20,25 @@ from apps.authentication.exceptions import (
 from apps.authentication.models import OTPToken
 
 from ..tasks import send_otp_email_task
+
+logger = logging.getLogger(__name__)
+
+
+def _otp_digest(user_id, purpose, otp_value):
+    payload = f"{user_id}:{purpose}:{otp_value}".encode()
+    secret = settings.SECRET_KEY.encode()
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
+def _dispatch_otp_email(email, otp, purpose):
+    def _runner():
+        try:
+            # Synchronous task call inside background thread avoids broker round-trip latency.
+            send_otp_email_task(email, otp, purpose)
+        except Exception as err:
+            logger.exception("OTP email send failed: %s", err)
+
+    threading.Thread(target=_runner, daemon=True).start()
 
 
 def generate_otp():
@@ -40,7 +63,7 @@ def create_otp(user, purpose):
 
     otp = generate_otp()
 
-    otp_hash = bcrypt.hashpw(otp.encode(), bcrypt.gensalt()).decode()
+    otp_hash = _otp_digest(user.id, purpose, otp)
     expires_at = timezone.now() + timedelta(minutes=5)
 
     OTPToken.objects.create(
@@ -50,7 +73,7 @@ def create_otp(user, purpose):
         expires_at=expires_at,
     )
 
-    transaction.on_commit(lambda: send_otp_email_task.delay(user.email, otp))
+    transaction.on_commit(lambda: _dispatch_otp_email(user.email, otp, purpose))
 
     return True
 
@@ -73,7 +96,8 @@ def verify_otp(user, purpose, otp_input):
     if otp_obj.attempt_count >= 5:
         raise OTPLockedException()
 
-    if not bcrypt.checkpw(otp_input.encode(), otp_obj.otp_hash.encode()):
+    otp_digest = _otp_digest(user.id, purpose, otp_input)
+    if not hmac.compare_digest(otp_obj.otp_hash, otp_digest):
         otp_obj.attempt_count += 1
         otp_obj.save(update_fields=["attempt_count"])
 

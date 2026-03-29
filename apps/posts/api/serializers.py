@@ -123,8 +123,21 @@ class PostCreateSerializer(serializers.Serializer):
         return post
 
 
+class MediaSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PostPlatformMedia
+        fields = [
+            "id",
+            "file",
+            "media_type",
+            "order",
+        ]
+
+
 class PlatformSummarySerializer(serializers.ModelSerializer):
     provider = serializers.CharField(source="publishing_target.provider")
+    media = MediaSerializer(many=True, read_only=True)
 
     class Meta:
         model = PostPlatform
@@ -135,6 +148,7 @@ class PlatformSummarySerializer(serializers.ModelSerializer):
             "scheduled_time",
             "external_post_id",
             "caption",
+            "media",
         ]
 
 
@@ -158,18 +172,6 @@ class PostListSerializer(serializers.ModelSerializer):
         if obj.created_by:
             return obj.created_by.email
         return None
-
-
-class MediaSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = PostPlatformMedia
-        fields = [
-            "id",
-            "file",
-            "media_type",
-            "order",
-        ]
 
 
 class PlatformDetailSerializer(serializers.ModelSerializer):

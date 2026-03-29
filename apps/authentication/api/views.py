@@ -15,6 +15,8 @@ from apps.authentication.api.serializers import (
     LoginSerializer,
     OTPRequestSerializer,
     OTPVerifySerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     RegistrationSerializer,
 )
 from apps.authentication.exceptions import (
@@ -88,6 +90,71 @@ class RequestEmailOTPView(APIView):
             )
 
         return Response({"message": "OTP sent"}, status=200)
+
+
+class RequestPasswordResetView(APIView):
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        email = serializer.validated_data["email"]
+
+        try:
+            throttle_request(request, "otp_request", email)
+            user = User.objects.get(email=email)
+            create_otp(user=user, purpose="password_reset")
+        except User.DoesNotExist:
+            pass  # prevent account enumeration
+        except OTPCooldownException:
+            return Response(
+                {"error": "Please wait before requesting another OTP"},
+                status=429,
+            )
+        except Throttled:
+            return Response({"error": "Too many requests"}, status=429)
+
+        return Response(
+            {"message": "If the account exists, a reset OTP has been sent."},
+            status=200,
+        )
+
+
+class ResetPasswordView(APIView):
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        email = serializer.validated_data["email"]
+        otp = serializer.validated_data["otp"]
+        new_password = serializer.validated_data["new_password"]
+
+        try:
+            throttle_request(request, "otp_verify", email)
+            user = User.objects.get(email=email)
+            verify_otp(user, "password_reset", otp)
+            user.set_password(new_password)
+            user.save(update_fields=["password"])
+        except User.DoesNotExist:
+            return Response({"error": "Invalid reset code"}, status=400)
+        except OTPLockedException:
+            return Response({"error": "Too many attempts", "locked": True}, status=400)
+        except OTPInvalidException as e:
+            remaining = str(e) if str(e) else None
+            return Response(
+                {"error": "Invalid reset code", "attempts_left": remaining},
+                status=400,
+            )
+        except Throttled:
+            return Response({"error": "Too many requests"}, status=429)
+
+        return Response(
+            {"message": "Password reset successful. Please login with your new password."},
+            status=200,
+        )
 
 
 class CustomTokenRefreshView(TokenRefreshView):
