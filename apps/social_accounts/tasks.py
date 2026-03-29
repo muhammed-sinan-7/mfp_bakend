@@ -16,7 +16,7 @@ def dispatch_expiring_meta_refresh_tasks():
     threshold = timezone.now() + timedelta(days=5)
 
     accounts = SocialAccount.objects.filter(
-        provider="META", is_active=True, token_expires_at__lte=threshold
+        provider=SocialProvider.META, is_active=True, token_expires_at__lte=threshold
     ).values_list("id", flat=True)
 
     for account_id in accounts:

@@ -1,3 +1,5 @@
+import logging
+
 from apps.social_accounts.models import (
     MetaPage,
     PublishingTarget,
@@ -5,6 +7,8 @@ from apps.social_accounts.models import (
 )
 
 from .meta import MetaOAuthService
+
+logger = logging.getLogger(__name__)
 
 
 class MetaSyncService:
@@ -36,9 +40,9 @@ class MetaSyncService:
             # 2️⃣ Create PublishingTarget for Facebook Page
             publishing_target, _ = PublishingTarget.objects.update_or_create(
                 social_account=social_account,
+                provider=SocialProvider.META,
                 resource_id=page_id,
                 defaults={
-                    "provider": SocialProvider.META,
                     "display_name": page_name,
                     "metadata": page,
                 },
@@ -48,7 +52,7 @@ class MetaSyncService:
 
             # 3️⃣ Fetch Instagram Business Account
             try:
-                ig_data = oauth_service.fetch_instagram_account(
+                ig_data = page.get("instagram_business_account") or oauth_service.fetch_instagram_account(
                     page_id=page_id, page_token=page_token
                 )
 
@@ -56,21 +60,36 @@ class MetaSyncService:
 
                     ig_id = ig_data["id"]
 
-                    ig_profile = oauth_service.fetch_instagram_profile(
-                        ig_id=ig_id, page_token=page_token
-                    )
+                    ig_profile = {}
+                    try:
+                        ig_profile = oauth_service.fetch_instagram_profile(
+                            ig_id=ig_id, page_token=page_token
+                        ) or {}
+                    except Exception as profile_exc:
+                        logger.warning(
+                            "Instagram profile fetch failed for ig_id %s (page %s): %s",
+                            ig_id,
+                            page_id,
+                            str(profile_exc),
+                        )
 
                     # 4️⃣ Update MetaPage with IG Business ID
                     meta_page.instagram_business_id = ig_id
                     meta_page.save(update_fields=["instagram_business_id"])
 
                     # 5️⃣ Create PublishingTarget for Instagram
+                    ig_display_name = (
+                        ig_profile.get("username")
+                        or page.get("name")
+                        or page_name
+                        or f"instagram-{ig_id}"
+                    )
                     ig_target, _ = PublishingTarget.objects.update_or_create(
                         social_account=social_account,
+                        provider=SocialProvider.INSTAGRAM,
                         resource_id=ig_id,
                         defaults={
-                            "provider": SocialProvider.INSTAGRAM,
-                            "display_name": ig_profile.get("username"),
+                            "display_name": ig_display_name,
                             "metadata": ig_profile,
                         },
                     )
@@ -78,6 +97,6 @@ class MetaSyncService:
                     synced_targets.append(ig_target)
 
             except Exception as e:
-                print("Instagram sync failed:", str(e))
+                logger.warning("Instagram sync failed for page %s: %s", page_id, str(e))
 
         return synced_targets

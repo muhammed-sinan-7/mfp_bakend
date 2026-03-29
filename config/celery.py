@@ -27,7 +27,7 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute="*"),
     },
     "purge-recycle-bin-every-hour": {
-        "task": "apps.posts.purge_recycle_bin",
+        "task": "apps.posts.tasks.purge_recycle_bin",
         "schedule": 3600,
     },
     "sync-post-analytics": {
@@ -37,5 +37,9 @@ app.conf.beat_schedule = {
     "fetch-industry-news": {
         "task": "apps.news.tasks.ingest_all_news",
         "schedule": crontab(minute="*/30"),  # every 30 min
+    },
+    "cleanup-analytics-snapshots-daily": {
+        "task": "apps.analytics.tasks.cleanup_old_analytics_snapshots",
+        "schedule": crontab(minute=30, hour=2),
     },
 }

@@ -138,7 +138,7 @@ def dispatch_scheduled_platforms():
 
 @shared_task
 def purge_recycle_bin():
-    threshold = timezone.now() - timedelta(days=2)
+    threshold = timezone.now() - timedelta(days=30)
 
     posts = Post.objects.filter(is_deleted=True, deleted_at__lt=threshold)
 

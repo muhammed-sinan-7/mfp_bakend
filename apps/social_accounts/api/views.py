@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import time
 from datetime import timedelta
 from urllib.parse import urlencode
@@ -17,7 +18,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.organizations.mixins import OrganizationContextMixin
-from apps.social_accounts.models import PublishingTarget, SocialAccount, SocialProvider
+from apps.social_accounts.models import (
+    MetaPage,
+    PublishingTarget,
+    SocialAccount,
+    SocialProvider,
+)
 from apps.social_accounts.services.linkedin import LinkedInOAuthService, LinkedInService
 from apps.social_accounts.services.meta_sync_service import MetaSyncService
 from apps.social_accounts.services.youtube import YouTubeOAuthService
@@ -25,6 +31,8 @@ from apps.social_accounts.services.youtube import YouTubeOAuthService
 from ..services.meta import MetaOAuthService
 from ..tasks import sync_meta_pages_task
 from .serializers import PublishingTargetSerializer, SocialAccountSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class MetaConnectView(OrganizationContextMixin, APIView):
@@ -150,6 +158,13 @@ class MetaCallbackView(APIView):
             },
         )
 
+        # Run one synchronous sync to avoid "connected account not visible until reload" UX.
+        try:
+            MetaSyncService.sync_pages(social_account)
+        except Exception as exc:
+            logger.warning("Immediate Meta sync failed for account %s: %s", social_account.id, str(exc))
+
+        # Keep async sync for eventual consistency and retries.
         sync_meta_pages_task.delay(social_account.id)
 
         return redirect(f"{settings.FRONTEND_SUCCESS_URL}/accounts")
@@ -309,18 +324,124 @@ class YouTubeCallbackView(APIView):
 
 class PublishingTargetListAPIView(OrganizationContextMixin, ListAPIView):
     serializer_class = PublishingTargetSerializer
+    pagination_class = None
 
     def get_queryset(self):
         return PublishingTarget.objects.filter(
-            social_account__organization=self.request.organization, is_active=True
+            social_account__organization=self.request.organization,
+            is_active=True,
+            provider__in=[
+                SocialProvider.INSTAGRAM,
+                SocialProvider.LINKEDIN,
+                SocialProvider.YOUTUBE,
+            ],
         ).order_by("-id")
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        has_instagram = queryset.filter(provider=SocialProvider.INSTAGRAM).exists()
+        if not has_instagram:
+            meta_accounts = SocialAccount.objects.filter(
+                organization=request.organization,
+                provider=SocialProvider.META,
+                is_active=True,
+            ).only("id", "access_token")
+
+            for account in meta_accounts:
+                try:
+                    MetaSyncService.sync_pages(account)
+                except Exception as exc:
+                    logger.warning(
+                        "Auto-sync before publishing-targets failed for account %s: %s",
+                        account.id,
+                        str(exc),
+                    )
+
+            # DB-level recovery: if Meta pages already have IG business IDs,
+            # recreate missing Instagram publishing targets without calling Graph.
+            meta_pages = (
+                MetaPage.objects.filter(
+                    social_account__organization=request.organization,
+                    social_account__is_active=True,
+                    instagram_business_id__isnull=False,
+                )
+                .exclude(instagram_business_id="")
+                .select_related("social_account")
+            )
+            for page in meta_pages:
+                try:
+                    PublishingTarget.objects.update_or_create(
+                        social_account=page.social_account,
+                        provider=SocialProvider.INSTAGRAM,
+                        resource_id=page.instagram_business_id,
+                        defaults={
+                            "display_name": page.name or f"instagram-{page.instagram_business_id}",
+                            "metadata": {
+                                "id": page.instagram_business_id,
+                                "source": "metapage-fallback",
+                            },
+                            "is_active": True,
+                        },
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Instagram fallback target upsert failed for MetaPage %s: %s",
+                        page.id,
+                        str(exc),
+                    )
+
+            # Legacy-data recovery: infer IG business IDs from Meta target metadata.
+            meta_targets = PublishingTarget.objects.filter(
+                social_account__organization=request.organization,
+                social_account__is_active=True,
+                provider=SocialProvider.META,
+                is_active=True,
+            ).select_related("social_account")
+            for target in meta_targets:
+                metadata = target.metadata or {}
+                ig_data = metadata.get("instagram_business_account") or {}
+                ig_id = ig_data.get("id")
+                if not ig_id:
+                    continue
+                try:
+                    PublishingTarget.objects.update_or_create(
+                        social_account=target.social_account,
+                        provider=SocialProvider.INSTAGRAM,
+                        resource_id=ig_id,
+                        defaults={
+                            "display_name": metadata.get("name")
+                            or target.display_name
+                            or f"instagram-{ig_id}",
+                            "metadata": {
+                                "id": ig_id,
+                                "source": "meta-target-fallback",
+                            },
+                            "is_active": True,
+                        },
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Instagram fallback from Meta target failed for target %s: %s",
+                        target.id,
+                        str(exc),
+                    )
+
+            queryset = self.get_queryset()
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class SocialAccountRefreshView(OrganizationContextMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, account_id):
-        from apps.social_accounts.tasks import refresh_meta_account_task
+        from apps.social_accounts.tasks import (
+            refresh_meta_account_task,
+            refresh_youtube_account_task,
+            sync_meta_pages_task,
+        )
 
         account = SocialAccount.objects.filter(
             id=account_id,
@@ -330,8 +451,16 @@ class SocialAccountRefreshView(OrganizationContextMixin, APIView):
         if not account:
             return Response({"error": "Account not found"}, status=404)
 
-        # trigger async refresh
-        refresh_meta_account_task.delay(account.id)
+        if account.provider == SocialProvider.META:
+            refresh_meta_account_task.delay(account.id)
+            sync_meta_pages_task.delay(account.id)
+        elif account.provider == SocialProvider.YOUTUBE:
+            refresh_youtube_account_task.delay(account.id)
+        elif account.provider == SocialProvider.LINKEDIN:
+            # LinkedIn doesn't support token refresh in current flow; keep UX consistent.
+            return Response({"message": "LinkedIn account is active. No refresh required."})
+        else:
+            return Response({"error": "Unsupported provider for refresh"}, status=400)
 
         return Response({"message": "Refresh triggered"})
 

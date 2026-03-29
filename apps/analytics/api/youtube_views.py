@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -14,16 +15,21 @@ from apps.social_accounts.models import SocialProvider
 
 from ..models import PostPlatformAnalytics, PostPlatformAnalyticsSnapshot
 
-start_date = timezone.now() - timedelta(days=30)
+CACHE_TTL_SECONDS = 60
+TRAFFIC_CACHE_TTL_SECONDS = 300
 
 
 class YouTubeOverviewView(OrganizationContextMixin, APIView):
 
     def get(self, request):
-
         org = request.organization
         if org is None:
             return Response({"error": "Organization context missing"}, status=400)
+
+        cache_key = f"analytics:youtube:overview:{org.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
 
         qs = PostPlatformAnalytics.objects.filter(
             post_platform__post__organization_id=org.id,
@@ -51,13 +57,13 @@ class YouTubeOverviewView(OrganizationContextMixin, APIView):
             or 0
         )
 
-        return Response(
-            {
-                "subscribers": int(subscribers or 0),
-                "watch_time": data["watch_time"] or 0,
-                "estimated_revenue": float(estimated_revenue or 0),
-            }
-        )
+        payload = {
+            "subscribers": int(subscribers or 0),
+            "watch_time": data["watch_time"] or 0,
+            "estimated_revenue": float(estimated_revenue or 0),
+        }
+        cache.set(cache_key, payload, timeout=CACHE_TTL_SECONDS)
+        return Response(payload)
 
 
 class YouTubeGrowthChartView(OrganizationContextMixin, APIView):
@@ -66,6 +72,11 @@ class YouTubeGrowthChartView(OrganizationContextMixin, APIView):
         org = request.organization
         if org is None:
             return Response({"error": "Organization context missing"}, status=400)
+
+        cache_key = f"analytics:youtube:growth:{org.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
 
         start_date = timezone.now() - timedelta(days=30)
 
@@ -76,13 +87,13 @@ class YouTubeGrowthChartView(OrganizationContextMixin, APIView):
                 captured_at__gte=start_date,
             )
             .annotate(day=TruncDate("captured_at"))
-            .order_by("day", "-captured_at")  # important
-            .distinct("day")  # PostgreSQL DISTINCT ON
+            .order_by("day", "-captured_at")
+            .distinct("day")
             .values("day", "views", "watch_time")
             .order_by("day")
         )
 
-        data = [
+        payload = [
             {
                 "day": row["day"],
                 "views": row["views"],
@@ -91,20 +102,30 @@ class YouTubeGrowthChartView(OrganizationContextMixin, APIView):
             for row in qs
         ]
 
-        return Response(data)
+        cache.set(cache_key, payload, timeout=CACHE_TTL_SECONDS)
+        return Response(payload)
 
 
 class YouTubeVideoAnalyticsView(OrganizationContextMixin, APIView):
 
     def get(self, request):
-
         org = request.organization
         if org is None:
             return Response({"error": "Organization context missing"}, status=400)
-        qs = PostPlatformAnalytics.objects.filter(
-            post_platform__post__organization_id=org.id,
-            post_platform__publishing_target__provider=SocialProvider.YOUTUBE,
-        ).prefetch_related("post_platform__media").order_by("-id")[:20]
+
+        cache_key = f"analytics:youtube:videos:{org.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        qs = (
+            PostPlatformAnalytics.objects.filter(
+                post_platform__post__organization_id=org.id,
+                post_platform__publishing_target__provider=SocialProvider.YOUTUBE,
+            )
+            .prefetch_related("post_platform__media")
+            .order_by("-id")[:20]
+        )
 
         data = []
 
@@ -123,8 +144,7 @@ class YouTubeVideoAnalyticsView(OrganizationContextMixin, APIView):
             data.append(
                 {
                     "video_id": v.post_platform.post.id,
-                    "title": v.post_platform.caption
-                    or f"YouTube Video {v.post_platform.id}",
+                    "title": v.post_platform.caption or f"YouTube Video {v.post_platform.id}",
                     "views": v.views,
                     "ctr": round((v.likes / v.views * 100) if v.views else 0, 2),
                     "comments": v.comments,
@@ -134,17 +154,22 @@ class YouTubeVideoAnalyticsView(OrganizationContextMixin, APIView):
                 }
             )
 
+        cache.set(cache_key, data, timeout=CACHE_TTL_SECONDS)
         return Response(data)
 
 
 class YouTubeTrafficSourcesView(OrganizationContextMixin, APIView):
 
     def get(self, request):
-
         org = request.organization
 
         if org is None:
             return Response({"error": "Organization context missing"}, status=400)
+
+        cache_key = f"analytics:youtube:traffic:{org.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
 
         account = org.social_accounts.filter(provider=SocialProvider.YOUTUBE).first()
 
@@ -177,7 +202,7 @@ class YouTubeTrafficSourcesView(OrganizationContextMixin, APIView):
 
         rows = report.get("rows", [])
 
-        TRAFFIC_LABELS = {
+        traffic_labels = {
             "YT_SEARCH": "YouTube Search",
             "SUGGESTED_VIDEO": "Suggested Videos",
             "BROWSE": "Browse Features",
@@ -187,13 +212,11 @@ class YouTubeTrafficSourcesView(OrganizationContextMixin, APIView):
         total = sum(r[1] for r in rows)
 
         data = []
-
         for src, views in rows:
-
             pct = round((views / total) * 100, 2) if total else 0
-
             data.append(
-                {"label": TRAFFIC_LABELS.get(src, src), "value": pct, "views": views}
+                {"label": traffic_labels.get(src, src), "value": pct, "views": views}
             )
 
+        cache.set(cache_key, data, timeout=TRAFFIC_CACHE_TTL_SECONDS)
         return Response(data)

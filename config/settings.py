@@ -97,7 +97,6 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
 # Media files configuration
 # Add right before the S3 settings
 
-print(f"DEBUG: DEFAULT_FILE_STORAGE being set now")
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 STORAGES = {
@@ -108,8 +107,6 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
-print(f"DEBUG: DEFAULT_FILE_STORAGE = {DEFAULT_FILE_STORAGE}")
-
 FILE_UPLOAD_TEMP_DIR = None 
 
 
@@ -242,7 +239,7 @@ MIDDLEWARE = [
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.getenv("REDIS_CACHE_URL"),
+        "LOCATION": os.getenv("REDIS_CACHE_URL", REDIS_URL),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },

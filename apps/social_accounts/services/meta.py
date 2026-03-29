@@ -48,7 +48,10 @@ class MetaOAuthService:
     def fetch_pages(self, user_token: str):
         response = requests.get(
             f"{self.GRAPH_BASE}/me/accounts",
-            params={"access_token": user_token},
+            params={
+                "access_token": user_token,
+                "fields": "id,name,access_token,instagram_business_account",
+            },
         )
         response.raise_for_status()
         return response.json()
